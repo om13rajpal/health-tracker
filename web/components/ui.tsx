@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { IconAlert, IconBack } from "./icons";
 import { DOMAINS, type DomainKey } from "../lib/domains";
+import type { AiAttribution } from "../lib/useLedger";
 
 /* -------------------------------------------------------------- page band -- */
 
@@ -204,6 +205,14 @@ export function EmptyState({
       )}
     </div>
   );
+}
+
+/** Marks an entry an AI session wrote directly, rather than something logged
+ *  by hand — never omitted, so an assistant's write is never mistaken for the
+ *  person's own record of what happened. */
+export function AiTag({ entry }: { entry: Partial<AiAttribution> }) {
+  if (entry.loggedVia !== "mcp") return null;
+  return <span className="pill ml-2">via {entry.loggedByClient ?? "an AI assistant"}</span>;
 }
 
 /* ------------------------------------------------------------------ table -- */

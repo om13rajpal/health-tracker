@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Chart, type Point } from "../../components/Chart";
 import { DayStrip } from "../../components/DayStrip";
 import { IconPlus } from "../../components/icons";
-import { DataTable, EmptyState, ErrorState, Loading, PageHeader, Section } from "../../components/ui";
+import { AiTag, DataTable, EmptyState, ErrorState, Loading, PageHeader, Section } from "../../components/ui";
 import { getTodayLocal } from "../../lib/date";
 import { DOMAINS } from "../../lib/domains";
 import { humanizeSlug, mediumDate, repRange } from "../../lib/format";
@@ -278,9 +278,12 @@ export default function TrainingPage() {
                 {sessions
                   .slice(-8)
                   .reverse()
-                  .map((session) => (
-                    <li key={session.date} className="py-3.5">
-                      <p className="t-caption">{mediumDate(session.date)}</p>
+                  .map((session, i) => (
+                    <li key={session._id ?? `${session.date}-${i}`} className="py-3.5">
+                      <p className="t-caption flex items-center gap-2">
+                        {mediumDate(session.date)}
+                        <AiTag entry={session} />
+                      </p>
                       <ul className="mt-1.5 flex flex-col gap-1">
                         {session.exercises.map((exercise) => (
                           <li key={exercise.exerciseId} className="flex flex-wrap items-baseline gap-x-3">

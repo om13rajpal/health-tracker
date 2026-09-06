@@ -37,6 +37,13 @@ const workoutSessionSchema = new Schema({
   date: { type: String, required: true, index: true },
   exercises: { type: [workoutExerciseSchema], required: true },
   readiness: { type: readinessSchema },
+  // Absent on every session logged before this field existed, and on every
+  // session logged through the web app's own form — only present for sessions
+  // an MCP client (Claude, ChatGPT) wrote directly, so the dashboards can tag
+  // them distinctly rather than presenting AI-authored data as if the person
+  // logged it themselves.
+  loggedVia: { type: String, enum: ["mcp"] },
+  loggedByClient: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
 

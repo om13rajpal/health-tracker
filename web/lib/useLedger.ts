@@ -23,7 +23,12 @@ export type Rollup = {
   hardSets: number;
 };
 
+/** Present only on an entry an MCP client (Claude, ChatGPT) wrote directly —
+ *  absent on anything logged through this app's own forms. */
+export type AiAttribution = { loggedVia: "mcp"; loggedByClient?: string };
+
 export type SleepSession = {
+  _id?: string;
   date: string;
   bedTime: string;
   wakeTime: string;
@@ -31,22 +36,24 @@ export type SleepSession = {
   stages?: { core?: number; deep?: number; rem?: number; awake?: number };
   morningLightWithinMinutes?: number;
   morningExercise?: boolean;
-};
+} & Partial<AiAttribution>;
 
 export type WorkoutSet = { reps: number; weight: number; rir?: number; type: string };
 export type WorkoutSession = {
+  _id?: string;
   date: string;
   exercises: { exerciseId: string; sets: WorkoutSet[] }[];
-};
+} & Partial<AiAttribution>;
 
 export type FoodEntry = {
+  _id?: string;
   date: string;
   mealSlot: "breakfast" | "lunch" | "dinner" | "snack";
   source: string;
   refId?: string;
   macros: { calories: number; proteinG: number; carbsG: number; fatG: number };
   addedFatGrams?: number;
-};
+} & Partial<AiAttribution>;
 
 export type NutritionSummary = {
   calories: number;

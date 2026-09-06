@@ -14,6 +14,10 @@ const sleepSessionSchema = new Schema({
   morningLightWithinMinutes: { type: Number },
   morningExercise: { type: Boolean },
   socialJetlagMinutes: { type: Number },
+  // Same convention as WorkoutSession/FoodEntry: absent for a web-logged
+  // night, "mcp" for one an AI session wrote directly.
+  loggedVia: { type: String, enum: ["mcp"] },
+  loggedByClient: { type: String },
 });
 
 export const SleepSession = model("SleepSession", sleepSessionSchema);

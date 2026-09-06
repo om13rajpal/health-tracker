@@ -3,9 +3,10 @@ import { WorkoutSession } from "../../models/WorkoutSession.js";
 import { ProgressionState } from "../../models/ProgressionState.js";
 import { applyBodyweightSession, applyBarbellSession } from "./progression-engine.js";
 import { defaultIstHistoryWindow } from "../../lib/dates.js";
+import type { WriteAttribution } from "../../lib/writeAttribution.js";
 
-export async function logWorkoutSession(input: WorkoutSessionInput) {
-  const session = await WorkoutSession.create(input);
+export async function logWorkoutSession(input: WorkoutSessionInput, attribution?: WriteAttribution) {
+  const session = await WorkoutSession.create({ ...input, ...attribution });
 
   const progressionResults: Record<string, unknown> = {};
 
@@ -79,4 +80,25 @@ export async function logWorkoutSession(input: WorkoutSessionInput) {
 export async function listWorkoutSessions(from?: string, to?: string) {
   const window = from && to ? { from, to } : defaultIstHistoryWindow();
   return WorkoutSession.find({ date: { $gte: window.from, $lte: window.to } }).sort({ date: 1 }).lean();
+}
+
+export type ProgressionTargetPatch = {
+  phase?: "bodyweight" | "barbell";
+  level?: number;
+  loadKg?: number;
+  increment?: number;
+  repRangeLow?: number;
+  repRangeHigh?: number;
+};
+
+// This is the app's "routine": what the Train page shows as what the
+// programme wants next, and what a fresh logged session is measured against.
+// Deliberately scoped to only the target fields a new block actually sets —
+// consecutiveTopOfRange/consecutiveBelowRange/consecutiveMisses/lastDeloadAt
+// are the progression engine's own bookkeeping, maintained only by real
+// logged sessions in logWorkoutSession above. Letting a routine push reset
+// those directly would let a client claim a deload streak was cleared without
+// an actual set ever being missed.
+export async function updateProgressionTarget(exerciseId: string, patch: ProgressionTargetPatch) {
+  return ProgressionState.findOneAndUpdate({ exerciseId }, { $set: patch }, { upsert: true, returnDocument: "after" });
 }

@@ -5,7 +5,7 @@ import { Chart } from "../../components/Chart";
 import { DayStrip } from "../../components/DayStrip";
 import { IconPlus } from "../../components/icons";
 import { Meter } from "../../components/Meter";
-import { EmptyState, ErrorState, Loading, PageHeader, Reading, Section } from "../../components/ui";
+import { AiTag, EmptyState, ErrorState, Loading, PageHeader, Reading, Section } from "../../components/ui";
 import { getTodayLocal } from "../../lib/date";
 import { DOMAINS } from "../../lib/domains";
 import { count, humanizeSlug, longDate, sentenceList } from "../../lib/format";
@@ -210,12 +210,13 @@ export default function NutritionPage() {
                     </div>
                     <ul className="ruled mt-2">
                       {items.map((item, i) => (
-                        <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-6 py-2">
+                        <li key={item._id ?? i} className="flex flex-wrap items-baseline justify-between gap-x-6 py-2">
                           <span className="t-small">
                             {item.refId ? humanizeSlug(item.refId) : "Estimated item"}
                             {item.addedFatGrams ? (
                               <span className="t-caption"> plus {item.addedFatGrams} g oil</span>
                             ) : null}
+                            <AiTag entry={item} />
                           </span>
                           <span className="t-num t-small" style={{ color: "var(--c-ink-soft)" }}>
                             {Math.round(item.macros.proteinG)} g protein, {Math.round(item.macros.calories)} kcal

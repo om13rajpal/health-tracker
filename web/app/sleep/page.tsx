@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Chart } from "../../components/Chart";
 import { DayStrip } from "../../components/DayStrip";
 import { IconPlus } from "../../components/icons";
-import { DataTable, EmptyState, ErrorState, Loading, PageHeader, Reading, Section } from "../../components/ui";
+import { AiTag, DataTable, EmptyState, ErrorState, Loading, PageHeader, Reading, Section } from "../../components/ui";
 import { DOMAINS } from "../../lib/domains";
 import { clockFromMinutes, durationHours, istClock, istMinutesOfDay, mediumDate } from "../../lib/format";
 import { computeSocialJetlag, computeWakeTimeConsistency } from "../../lib/sleep-metrics";
@@ -261,7 +261,12 @@ export default function SleepPage() {
                   .slice(-10)
                   .reverse()
                   .map((s) => ({
-                    date: mediumDate(s.date),
+                    date: (
+                      <>
+                        {mediumDate(s.date)}
+                        <AiTag entry={s} />
+                      </>
+                    ),
                     bed: istClock(s.bedTime),
                     wake: istClock(s.wakeTime),
                     hours: durationHours(hoursOf(s)),

@@ -1,5 +1,6 @@
 import type { FoodEntryInput } from "@health-tracker/shared";
 import { FoodEntry } from "../../models/FoodEntry.js";
+import type { WriteAttribution } from "../../lib/writeAttribution.js";
 
 // Accepted tradeoff, flagged during this plan's audit: this is a hardcoded
 // constant, not a per-user stored/configurable value, even though the spec's
@@ -12,8 +13,8 @@ const DAILY_PROTEIN_TARGET_G = 155;
 
 const KCAL_PER_GRAM_OF_FAT = 9;
 
-export async function logFoodEntry(input: FoodEntryInput) {
-  return FoodEntry.create(input);
+export async function logFoodEntry(input: FoodEntryInput, attribution?: WriteAttribution) {
+  return FoodEntry.create({ ...input, ...attribution });
 }
 
 export async function getDailyMacroSummary(date: string) {

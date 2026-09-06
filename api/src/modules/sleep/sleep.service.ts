@@ -1,8 +1,9 @@
 import type { SleepSessionInput } from "@health-tracker/shared";
 import { SleepSession } from "../../models/SleepSession.js";
 import { defaultIstHistoryWindow } from "../../lib/dates.js";
+import type { WriteAttribution } from "../../lib/writeAttribution.js";
 
-export async function logSleepSession(input: SleepSessionInput) {
+export async function logSleepSession(input: SleepSessionInput, attribution?: WriteAttribution) {
   const bedTime = new Date(input.bedTime);
   const wakeTime = new Date(input.wakeTime);
   const midpoint = new Date((bedTime.getTime() + wakeTime.getTime()) / 2);
@@ -16,6 +17,7 @@ export async function logSleepSession(input: SleepSessionInput) {
       midpoint,
       morningLightWithinMinutes: input.morningLightWithinMinutes,
       morningExercise: input.morningExercise,
+      ...attribution,
     },
     { upsert: true, returnDocument: "after" }
   );
