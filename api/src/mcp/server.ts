@@ -1,10 +1,13 @@
 import type { Express } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
+import { getOAuthProtectedResourceMetadataUrl } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { z } from "zod";
 import { getWeeklyDigest, saveCoachNote } from "./tools.js";
 import { getDailyMacroSummary } from "../modules/nutrition/nutrition.service.js";
-import { requireBearerToken } from "../lib/bearerAuth.js";
+import { oauthServerProvider } from "../modules/oauth/oauthProvider.js";
+import { getPublicBaseUrl } from "../lib/publicUrl.js";
 
 function buildMcpServer(): McpServer {
   const server = new McpServer({ name: "health-tracker", version: "0.0.1" });
@@ -55,11 +58,22 @@ function buildMcpServer(): McpServer {
 }
 
 export function mountMcpServer(app: Express) {
+  // Accepts two credential kinds through one check: a token minted by the
+  // OAuth flow above (what Claude/ChatGPT's native connector UI uses), or the
+  // long-lived MCP_ACCESS_TOKEN env var (what the mcp-remote bridge and this
+  // app's own test suite use). oauthServerProvider.verifyAccessToken checks
+  // the static token first, then falls back to the database.
+  //
+  // resourceMetadataUrl is what turns up in the WWW-Authenticate header on a
+  // 401 — it's how Claude/ChatGPT discover where to start the OAuth flow the
+  // first time they hit this endpoint with no token at all.
   app.post(
     "/mcp",
-    // Read the token per request, not once at mount time, so the middleware
-    // sees env changes made after createApp() — same pattern as health-events.
-    (req, res, next) => requireBearerToken(process.env.MCP_ACCESS_TOKEN ?? "")(req, res, next),
+    requireBearerAuth({
+      verifier: oauthServerProvider,
+      requiredScopes: ["mcp"],
+      resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(new URL("/mcp", getPublicBaseUrl())),
+    }),
     async (req, res) => {
       const server = buildMcpServer();
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
