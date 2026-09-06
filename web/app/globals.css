@@ -1,0 +1,728 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   The Ledger — design system
+   ----------------------------------------------------------------------------
+   The organising idea is a lifter's notebook: ruled, dense, numeric, and
+   honest about gaps. Days are the unit of record. Structure is carried by
+   rules and colour edges rather than by boxes with shadows, so the page reads
+   as one continuous ledger instead of a tray of cards.
+
+   Four domains, four pigments, used identically everywhere (nav, day strip,
+   charts, page edges) so the colour is an encoding, not decoration:
+     train → moss · eat → marigold · sleep → indigo · body → rust
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Ground and ink */
+  --c-paper: #eff0ea; /* page — cool mineral, deliberately not cream */
+  --c-field: #fafbf7; /* raised surfaces */
+  --c-ink: #15211c; /* text and the dark band */
+  --c-ink-soft: #4a564f; /* secondary text */
+  --c-ink-faint: #7c877f; /* captions, axis labels */
+  --c-rule: #d7d9d0; /* hairline rules */
+  --c-rule-soft: #e4e6dd;
+
+  /* Domain pigments. These four are the chart series palette, so they are not
+     picked by eye: the set passes the lightness-band, chroma-floor, CVD-
+     separation, normal-vision and contrast checks against the light surface
+     (validate_palette.js, --mode light). Changing one means re-running it. */
+  --c-moss: #0c6c41;
+  --c-marigold: #c2850e;
+  --c-indigo: #4a55a8;
+  --c-rust: #ad4126;
+
+  /* Tints — used as fills behind their own pigment */
+  --c-moss-wash: #dde9e2;
+  --c-marigold-wash: #f2e7d0;
+  --c-indigo-wash: #e1e3f1;
+  --c-rust-wash: #f2e0d9;
+
+  /* Status. Reserved — never reused as a fifth series colour. */
+  --c-good: #0c6c41;
+  --c-warn: #8f6208;
+  --c-bad: #9b3a21;
+
+  /* The dark band at the top of each page, and the text sitting on it. */
+  --c-band: #15211c;
+  /* On the dark band the light-mode pigments are too dark to read, so the band
+     always uses the dark-tuned step of the same hue — in both themes, because
+     the band is dark in both. Every one of these clears 3.8:1 against it. */
+  --c-moss-on-band: #0d8a55;
+  --c-marigold-on-band: #d9a441;
+  --c-indigo-on-band: #8b96d8;
+  --c-rust-on-band: #cf5d3b;
+  --c-bad-on-band: #e0836a;
+
+  --c-on-ink: #eef0e9;
+  --c-on-ink-soft: #9daaa1;
+  --c-on-ink-rule: #2c3a33;
+
+  /* Geometry — a ledger is ruled, so radii stay near-square */
+  --r-sm: 2px;
+  --r-md: 3px;
+
+  /* Type scale */
+  --t-micro: 0.6875rem; /* 11 */
+  --t-small: 0.8125rem; /* 13 */
+  --t-body: 0.9375rem; /* 15 */
+  --t-lead: 1.1875rem; /* 19 */
+  --t-h3: 1.5rem; /* 24 */
+  --t-h2: 1.9375rem; /* 31 */
+  --t-h1: 2.75rem; /* 44 */
+  --t-hero: 4rem; /* 64 */
+}
+
+/* Dark is a selected theme, not an inversion: the four pigments are re-stepped
+   against the dark surface and re-validated there (--mode dark, surface
+   #16211d). The band goes darker than the page rather than flipping to a light
+   slab — inverting it would make the header vanish into the body. The two
+   blocks below are deliberate duplicates: a media query and an explicit
+   override cannot share one declaration list. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --c-paper: #0e1714;
+    --c-field: #16211d;
+    --c-ink: #e7eae3;
+    --c-ink-soft: #9aa79f;
+    --c-ink-faint: #75837b;
+    --c-rule: #29362f;
+    --c-rule-soft: #1f2b26;
+
+    --c-moss: #0d8a55;
+    --c-marigold: #b98c25;
+    --c-indigo: #7f8ad8;
+    --c-rust: #cf5d3b;
+
+    --c-moss-wash: #12291f;
+    --c-marigold-wash: #2a2211;
+    --c-indigo-wash: #1c2038;
+    --c-rust-wash: #2e1a13;
+
+    --c-good: #4fb383;
+    --c-warn: #d9a441;
+    --c-bad: #e0836a;
+
+    --c-band: #080f0d;
+    /* The --c-*-on-band values are identical in both themes (the band is dark
+       in both), so they are defined once in :root and inherited here. */
+    --c-on-ink: #e7eae3;
+    --c-on-ink-soft: #93a19a;
+    --c-on-ink-rule: #29362f;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-paper: #0e1714;
+  --c-field: #16211d;
+  --c-ink: #e7eae3;
+  --c-ink-soft: #9aa79f;
+  --c-ink-faint: #75837b;
+  --c-rule: #29362f;
+  --c-rule-soft: #1f2b26;
+
+  --c-moss: #0d8a55;
+  --c-marigold: #b98c25;
+  --c-indigo: #7f8ad8;
+  --c-rust: #cf5d3b;
+
+  --c-moss-wash: #12291f;
+  --c-marigold-wash: #2a2211;
+  --c-indigo-wash: #1c2038;
+  --c-rust-wash: #2e1a13;
+
+  --c-good: #4fb383;
+  --c-warn: #d9a441;
+  --c-bad: #e0836a;
+
+  --c-band: #080f0d;
+  --c-on-ink: #e7eae3;
+  --c-on-ink-soft: #93a19a;
+  --c-on-ink-rule: #29362f;
+}
+
+/* Tailwind utilities point at the same runtime vars, so `bg-paper`,
+   `text-moss` etc. follow the theme without a second set of dark: classes. */
+@theme inline {
+  --color-paper: var(--c-paper);
+  --color-field: var(--c-field);
+  --color-ink: var(--c-ink);
+  --color-ink-soft: var(--c-ink-soft);
+  --color-ink-faint: var(--c-ink-faint);
+  --color-rule: var(--c-rule);
+  --color-rule-soft: var(--c-rule-soft);
+  --color-moss: var(--c-moss);
+  --color-marigold: var(--c-marigold);
+  --color-indigo: var(--c-indigo);
+  --color-rust: var(--c-rust);
+  --color-good: var(--c-good);
+  --color-warn: var(--c-warn);
+  --color-bad: var(--c-bad);
+  --color-band: var(--c-band);
+  --color-on-ink: var(--c-on-ink);
+  --color-on-ink-soft: var(--c-on-ink-soft);
+  --color-moss-wash: var(--c-moss-wash);
+  --color-marigold-wash: var(--c-marigold-wash);
+  --color-indigo-wash: var(--c-indigo-wash);
+  --color-rust-wash: var(--c-rust-wash);
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+}
+
+/* The rules below live in Tailwind's own layers so that a utility class in
+   markup can override a component class here. Unlayered CSS wins over any
+   layer regardless of specificity, which would otherwise make `.measure`
+   beat `max-w-3xl` and force `!important` onto every override. */
+
+@layer base {
+  /* ---------------------------------------------------------------- base ---- */
+
+  * {
+    border-color: var(--c-rule);
+  }
+
+  html {
+    background: var(--c-paper);
+  }
+
+  body {
+    background: var(--c-paper);
+    color: var(--c-ink);
+    font-family: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--t-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--c-moss);
+    color: #fff;
+  }
+
+  /* The focus ring picks up whichever domain the page is in, so the outline
+     never contradicts the colour the rest of the screen is using. */
+  :focus-visible {
+    outline: 2px solid var(--domain, var(--c-moss));
+    outline-offset: 2px;
+    border-radius: 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* ------------------------------------------------------------ typography -- */
+
+  .t-hero,
+  .t-h1,
+  .t-h2,
+  .t-h3 {
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    line-height: 1.06;
+    /* Archivo carries a width axis; headlines run wide, which reads as
+       athletic signage rather than as a default grotesque. */
+    font-stretch: 112%;
+    font-variation-settings: "wdth" 112;
+  }
+
+  .t-hero {
+    font-size: clamp(2.75rem, 8vw, var(--t-hero));
+    font-weight: 800;
+  }
+  .t-h1 {
+    font-size: clamp(2rem, 5.5vw, var(--t-h1));
+  }
+  .t-h2 {
+    font-size: var(--t-h2);
+  }
+  .t-h3 {
+    font-size: var(--t-h3);
+    letter-spacing: -0.014em;
+  }
+
+  .t-lead {
+    font-size: var(--t-lead);
+    line-height: 1.42;
+    color: var(--c-ink-soft);
+    max-width: 58ch;
+  }
+
+  .t-body {
+    font-size: var(--t-body);
+    max-width: 72ch;
+  }
+
+  .t-small {
+    font-size: var(--t-small);
+    line-height: 1.45;
+  }
+
+  .t-caption {
+    font-size: var(--t-micro);
+    line-height: 1.4;
+    color: var(--c-ink-faint);
+    letter-spacing: 0.005em;
+  }
+
+  /* Numerals only. Mono here is doing its actual job — aligning digits in
+     columns and in set notation — and is never used for words. */
+  .t-num {
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.02em;
+  }
+
+  .t-stat {
+    font-family: var(--font-archivo), sans-serif;
+    font-weight: 800;
+    font-stretch: 112%;
+    font-variation-settings: "wdth" 112;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 0.94;
+  }
+
+  /* ---------------------------------------------------------------- shell --- */
+
+  .shell {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 900px) {
+    .shell {
+      grid-template-columns: 13.5rem 1fr;
+    }
+  }
+
+  /* Clears the fixed tab bar, and switches at the same width the tab bar does. */
+  .shell-content {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 900px) {
+    .shell-content {
+      padding-bottom: 0;
+    }
+  }
+
+  .measure {
+    width: 100%;
+    max-width: 68rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .measure {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* The dark band at the top of each page. Carries the page's headline reading
+     and the day strip; everything below it stays on paper. */
+  .band {
+    background: var(--c-band);
+    color: var(--c-on-ink);
+  }
+
+  .band .t-caption,
+  .band .t-lead {
+    color: var(--c-on-ink-soft);
+  }
+
+  .band hr,
+  .band .rule {
+    border-color: var(--c-on-ink-rule);
+  }
+
+  /* ----------------------------------------------------------------- rail --- */
+
+  .rail {
+    display: none;
+  }
+
+  @media (min-width: 900px) {
+    .rail {
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      background: var(--c-field);
+      border-right: 1px solid var(--c-rule);
+      padding: 1.5rem 0.875rem;
+      gap: 0.125rem;
+    }
+  }
+
+  .rail-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: var(--r-sm);
+    color: var(--c-ink-soft);
+    font-size: var(--t-body);
+    font-weight: 500;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+
+  .rail-link:hover {
+    background: var(--c-rule-soft);
+    color: var(--c-ink);
+  }
+
+  .rail-link[aria-current="page"] {
+    color: var(--c-ink);
+    font-weight: 600;
+    background: var(--c-rule-soft);
+    border-left-color: var(--domain, var(--c-ink));
+  }
+
+  .rail-link svg {
+    flex: none;
+    color: var(--domain, var(--c-ink-faint));
+  }
+
+  /* ------------------------------------------------------------- tab bar ---- */
+
+  .tabbar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    background: var(--c-field);
+    border-top: 1px solid var(--c-rule);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (min-width: 900px) {
+    .tabbar {
+      display: none;
+    }
+  }
+
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1875rem;
+    padding: 0.5rem 0.25rem 0.4375rem;
+    color: var(--c-ink-faint);
+    font-size: var(--t-micro);
+    font-weight: 500;
+    text-decoration: none;
+    border-top: 2px solid transparent;
+    margin-top: -1px;
+  }
+
+  .tab[aria-current="page"] {
+    color: var(--c-ink);
+    border-top-color: var(--domain, var(--c-ink));
+  }
+
+  .tab[aria-current="page"] svg {
+    color: var(--domain, var(--c-ink));
+  }
+
+  /* ------------------------------------------------------------ ledger row -- */
+
+  /* A domain row. Identified by a colour edge on the left, not by a card —
+     the rows stack into one continuous ruled record. */
+  .row {
+    display: block;
+    position: relative;
+    background: var(--c-field);
+    border: 1px solid var(--c-rule);
+    border-left: 3px solid var(--domain, var(--c-rule));
+    border-radius: var(--r-sm);
+    padding: 1.125rem 1.25rem;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  a.row {
+    transition: border-color 0.12s ease, background-color 0.12s ease;
+  }
+
+  a.row:hover {
+    background: var(--c-paper);
+    border-color: var(--c-ink-faint);
+    border-left-color: var(--domain, var(--c-ink));
+  }
+
+  /* Three fields to a ledger row: the reading, what it is being measured
+     against, and the note beside it. */
+  .row-grid {
+    display: grid;
+    gap: 1.125rem 2.5rem;
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  @media (min-width: 760px) {
+    .row-grid {
+      grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr) minmax(0, 17rem);
+    }
+  }
+
+  .panel {
+    background: var(--c-field);
+    border: 1px solid var(--c-rule);
+    border-radius: var(--r-sm);
+    padding: 1.25rem;
+  }
+
+  /* A ruled list — the ledger's native list form. */
+  .ruled > * + * {
+    border-top: 1px solid var(--c-rule-soft);
+  }
+
+  /* ------------------------------------------------------------- controls --- */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0 1.125rem;
+    border-radius: var(--r-sm);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: var(--t-body);
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* The primary action is ink with a domain edge rather than a domain-coloured
+     fill. It keeps the label at full contrast in both themes — marigold and rust
+     cannot carry white text — and it matches the rest of the ledger, where the
+     pigment marks the edge of a thing and never floods it. */
+  .btn-primary {
+    background: var(--c-band);
+    color: var(--c-on-ink);
+    border-left: 3px solid var(--domain, var(--c-moss));
+    padding-left: 1rem;
+  }
+
+  .btn-primary:not(:disabled):hover {
+    filter: brightness(1.4);
+  }
+
+  .btn-secondary {
+    background: var(--c-field);
+    border-color: var(--c-rule);
+    color: var(--c-ink);
+  }
+
+  .btn-secondary:not(:disabled):hover {
+    border-color: var(--c-ink-faint);
+    background: var(--c-paper);
+  }
+
+  /* For a button sitting on the dark band, where `.btn-secondary`'s near-white
+     surface would read as a grey slab rather than a control. */
+  .btn-on-band {
+    background: transparent;
+    border-color: var(--c-on-ink-soft);
+    color: var(--c-on-ink);
+  }
+
+  .btn-on-band:not(:disabled):hover {
+    background: color-mix(in oklab, var(--c-on-ink) 12%, transparent);
+    border-color: var(--c-on-ink);
+  }
+
+  .btn-quiet {
+    background: transparent;
+    color: var(--c-ink-soft);
+    padding-inline: 0.625rem;
+  }
+
+  .btn-quiet:not(:disabled):hover {
+    color: var(--c-ink);
+    background: var(--c-rule-soft);
+  }
+
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--c-field);
+    border: 1px solid var(--c-rule);
+    border-radius: var(--r-sm);
+    color: var(--c-ink);
+    font-family: inherit;
+    font-size: var(--t-body);
+  }
+
+  .field::placeholder {
+    color: var(--c-ink-faint);
+  }
+
+  .field:focus-visible {
+    border-color: var(--domain, var(--c-moss));
+    outline-offset: 0;
+  }
+
+  /* Numeric entry — big enough to hit with a thumb mid-set, tabular so the
+     digits do not jump as they change. */
+  .field-num {
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-lead);
+    font-weight: 500;
+    text-align: center;
+    padding-inline: 0.25rem;
+  }
+
+  .label {
+    display: block;
+    font-size: var(--t-small);
+    font-weight: 600;
+    color: var(--c-ink-soft);
+    margin-bottom: 0.375rem;
+  }
+
+  /* --------------------------------------------------------------- notices -- */
+
+  .notice {
+    display: flex;
+    gap: 0.625rem;
+    align-items: flex-start;
+    padding: 0.75rem 0.875rem;
+    border-radius: var(--r-sm);
+    border: 1px solid;
+    font-size: var(--t-small);
+  }
+
+  .notice-bad {
+    border-color: var(--c-bad);
+    background: var(--c-rust-wash);
+    color: var(--c-ink);
+  }
+
+  .notice-good {
+    border-color: var(--c-good);
+    background: var(--c-moss-wash);
+    color: var(--c-ink);
+  }
+
+  .notice-warn {
+    border-color: var(--c-warn);
+    background: var(--c-marigold-wash);
+    color: var(--c-ink);
+  }
+
+  /* A pill that states a fact about a reading, not a decorative tag. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.1875rem 0.5rem;
+    border-radius: var(--r-sm);
+    font-size: var(--t-micro);
+    font-weight: 600;
+    border: 1px solid var(--c-rule);
+    color: var(--c-ink-soft);
+    white-space: nowrap;
+  }
+
+  /* --------------------------------------------------------------- skeleton - */
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--c-rule-soft) 25%, var(--c-rule) 50%, var(--c-rule-soft) 75%);
+    background-size: 200% 100%;
+    animation: skeleton 1.4s ease-in-out infinite;
+    border-radius: var(--r-sm);
+  }
+
+  @keyframes skeleton {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  /* ------------------------------------------------------------- day strip -- */
+
+  /* The hero. Twelve weeks of days, each a narrow column of four marks. A day
+     with no record is a hairline outline, not a blank — the gaps are part of
+     the record. */
+  .strip {
+    --mark-h: 11px;
+    --mark-gap: 2px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 1.5px;
+  }
+
+  @media (max-width: 640px) {
+    .strip {
+      --mark-h: 9px;
+      gap: 1px;
+    }
+  }
+
+  .strip-day {
+    display: grid;
+    gap: var(--mark-gap);
+    min-width: 0;
+  }
+
+  .strip-mark {
+    border-radius: 1px;
+    height: var(--mark-h);
+  }
+
+  /* The label column mirrors the strip's row rhythm exactly so "Sleep" sits
+     against the sleep row and not between two of them. */
+  .strip-labels {
+    display: grid;
+    gap: var(--mark-gap, 2px);
+  }
+
+  .strip-labels > * {
+    height: var(--mark-h, 11px);
+    display: flex;
+    align-items: center;
+  }
+}

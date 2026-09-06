@@ -1,0 +1,32 @@
+# Keeps the build context small and stops local state leaking into the image.
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+
+# Never send credentials to the daemon, even though the image would not use them.
+.env
+.env.*
+!.env.example
+
+.git
+.github
+ios
+docs
+.claude
+.claude-flow
+.swarm
+.agents
+.superpowers
+.playwright-mcp
+ruvector.db
+
+**/*.test.ts
+**/*.test.tsx
+**/vitest.config.ts
+**/vitest.setup.ts
+
+._*
+.DS_Store
+*.log

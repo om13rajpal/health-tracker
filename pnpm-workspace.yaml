@@ -1,0 +1,8 @@
+packages:
+  - "api"
+  - "web"
+  - "shared"
+  - "ios"
+allowBuilds:
+  esbuild: true
+  mongodb-memory-server: true

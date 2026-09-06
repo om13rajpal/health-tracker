@@ -1,0 +1,50 @@
+# Ruflo local secrets and runtime data
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+
+# macOS AppleDouble files (created by exFAT external drive)
+._*
+.DS_Store
+
+# Node
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+
+# Next.js
+.next/
+
+# Serwist build output. Its __SW_MANIFEST precache list is build-specific, so a
+# committed copy either makes every build a spurious diff or ships a manifest
+# pointing at hashed assets that no longer exist. Scoped to these files rather
+# than all of web/public/, which is also where committed static assets
+# (icon.png for the PWA manifest) belong.
+web/public/sw.js
+web/public/sw.js.map
+web/public/swe-worker-*.js
+
+# Ruflo / claude-flow runtime & memory artifacts
+.claude-flow/
+.swarm/
+.agents/
+ruvector.db
+.playwright-mcp/
+
+# Superpowers subagent-driven-development scratch workspace
+.superpowers/
+
+# Local agent tooling and configuration. Kept on disk, out of the repository:
+# none of it is part of the application.
+.claude/
+CLAUDE.md
+web/CLAUDE.md
+.mcp.json
+
+# Real values for the iOS bridge's API host and shared token. Only the
+# .example template is tracked.
+ios/Secrets.xcconfig

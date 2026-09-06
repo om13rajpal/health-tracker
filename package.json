@@ -1,0 +1,9 @@
+{
+  "name": "health-tracker",
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "test:api": "pnpm --filter api test",
+    "build:api": "pnpm --filter api build"
+  }
+}

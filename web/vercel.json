@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @health-tracker/web build",
+  "installCommand": "pnpm install",
+  "outputDirectory": ".next"
+}
