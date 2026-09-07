@@ -48,3 +48,6 @@ web/CLAUDE.md
 # Real values for the iOS bridge's API host and shared token. Only the
 # .example template is tracked.
 ios/Secrets.xcconfig
+
+# Per-developer Xcode IDE state (breakpoints, window layout) — not project config.
+xcuserdata/

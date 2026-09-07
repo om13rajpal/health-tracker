@@ -127,19 +127,9 @@ final class HealthObserverCoordinator {
         }
 
         let anchor = anchorStore.anchor(for: metric)
-        // Exclude samples written by this app's own HKSource: HealthKitSampleWriter
-        // (Task 5) writes backend-originated pending writes back into HealthKit, and
-        // without this exclusion this anchored query would immediately pick those
-        // writes back up and re-POST them to the ingestion endpoint — a pointless
-        // echo. `HKQuery.predicateForObjects(from:)` and `HKSource.default()` are both
-        // real HealthKit APIs (HKSource.default() returns the running app's HKSource;
-        // predicateForObjects(from:) accepts an HKSource and matches samples whose
-        // HKSource equals it).
-        let ownSourcePredicate = HKQuery.predicateForObjects(from: HKSource.default())
-        let excludeOwnSourcePredicate = NSCompoundPredicate(notPredicateWithSubpredicate: ownSourcePredicate)
         let anchoredQuery = HKAnchoredObjectQuery(
             type: metric.sampleType,
-            predicate: excludeOwnSourcePredicate,
+            predicate: nil,
             anchor: anchor,
             limit: HKObjectQueryNoLimit
         ) { [weak self] _, samples, _, newAnchor, error in

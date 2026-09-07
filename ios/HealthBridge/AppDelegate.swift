@@ -1,5 +1,4 @@
 import UIKit
-import BackgroundTasks
 import HealthKit
 
 /// Owns construction of the app's shared HealthKit/sync objects and performs the
@@ -9,7 +8,6 @@ import HealthKit
 /// appears — actually re-arms them. `HealthBridgeApp` reads these shared instances from
 /// `appDelegate` rather than constructing its own separate copies.
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    static let pendingWritesRefreshTaskIdentifier = "com.healthtracker.iosbridge.pending-writes-refresh"
     static let workoutUploadSessionIdentifier = "com.healthtracker.iosbridge.background-upload-workouts"
     static let categoryUploadSessionIdentifier = "com.healthtracker.iosbridge.background-upload-categories"
     static let moodUploadSessionIdentifier = "com.healthtracker.iosbridge.background-upload-mood"
@@ -76,21 +74,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _moodCoordinatorBox = coordinator
         return coordinator
     }
-    let pendingWritesSyncer = PendingWritesSyncer(
-        networking: PendingWritesClient(
-            pendingWritesURL: AppConfig.pendingWritesEndpoint,
-            bearerToken: AppConfig.bearerToken
-        ),
-        writer: HealthKitSampleWriter(healthStore: HKHealthStore())
-    )
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.pendingWritesRefreshTaskIdentifier, using: nil) { [weak self] task in
-            self?.handlePendingWritesRefresh(task: task as! BGAppRefreshTask)
-        }
-
         startAllObservers()
-        scheduleNextPendingWritesRefresh()
 
         // `requestAuthorizationIfNeeded()` is async and @MainActor-isolated, but
         // `didFinishLaunchingWithOptions` is synchronous — fire-and-forget rather than
@@ -134,25 +120,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             categoryUploadSession.backgroundCompletionHandler = completionHandler
         default:
             completionHandler()
-        }
-    }
-
-    func scheduleNextPendingWritesRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: Self.pendingWritesRefreshTaskIdentifier)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
-        try? BGTaskScheduler.shared.submit(request)
-    }
-
-    private func handlePendingWritesRefresh(task: BGAppRefreshTask) {
-        scheduleNextPendingWritesRefresh()
-
-        let operation = Task {
-            _ = await pendingWritesSyncer.syncOnce()
-            task.setTaskCompleted(success: true)
-        }
-
-        task.expirationHandler = {
-            operation.cancel()
         }
     }
 }

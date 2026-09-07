@@ -1,12 +1,10 @@
 import { Router } from "express";
-import { z } from "zod";
 import { HealthEventPayloadSchema, WorkoutPayloadSchema, CategorySamplePayloadSchema, MoodPayloadSchema } from "@health-tracker/shared";
 import { normalizeHealthEvent } from "./ingestion-adapter.js";
 import { HealthSample } from "../../models/HealthSample.js";
 import { HealthWorkout } from "../../models/HealthWorkout.js";
 import { HealthCategorySample } from "../../models/HealthCategorySample.js";
 import { Mood } from "../../models/Mood.js";
-import { PendingWrite } from "../../models/PendingWrite.js";
 import { requireBearerToken } from "../../lib/bearerAuth.js";
 
 export const healthEventsRouter = Router();
@@ -95,51 +93,5 @@ healthEventsRouter.post(
       date: new Date(parsed.data.date),
     });
     res.status(201).json({ stored: true });
-  }
-);
-
-healthEventsRouter.get(
-  "/pending-writes",
-  (req, res, next) => requireBearerToken(process.env.MCP_ACCESS_TOKEN ?? "")(req, res, next),
-  async (_req, res) => {
-    const pending = await PendingWrite.find({ delivered: false }).sort({ timestamp: 1 });
-    res.json(
-      pending.map((doc) => ({
-        id: doc._id.toString(),
-        metric: doc.metric,
-        value: doc.value,
-        unit: doc.unit,
-        timestamp: doc.timestamp.toISOString(),
-      }))
-    );
-  }
-);
-
-const AckParamsSchema = z.object({
-  id: z.string().regex(/^[a-f0-9]{24}$/i, "id must be a valid Mongo ObjectId"),
-});
-
-healthEventsRouter.post(
-  "/pending-writes/:id/ack",
-  (req, res, next) => requireBearerToken(process.env.MCP_ACCESS_TOKEN ?? "")(req, res, next),
-  async (req, res) => {
-    const parsedParams = AckParamsSchema.safeParse(req.params);
-    if (!parsedParams.success) {
-      res.status(400).json({ error: parsedParams.error.flatten() });
-      return;
-    }
-
-    const updated = await PendingWrite.findOneAndUpdate(
-      { _id: parsedParams.data.id, delivered: false },
-      { delivered: true, deliveredAt: new Date() },
-      { returnDocument: "after" }
-    );
-
-    if (!updated) {
-      res.status(404).json({ error: "Pending write not found" });
-      return;
-    }
-
-    res.json({ acked: true });
   }
 );

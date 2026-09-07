@@ -26,7 +26,6 @@ enum AppConfig {
     static var workoutsEndpoint: URL { baseURL.appendingPathComponent("api/health-events/workouts") }
     static var categorySamplesEndpoint: URL { baseURL.appendingPathComponent("api/health-events/category-samples") }
     static var moodEndpoint: URL { baseURL.appendingPathComponent("api/health-events/mood") }
-    static var pendingWritesEndpoint: URL { baseURL.appendingPathComponent("api/health-events/pending-writes") }
 
     /// True while the placeholders are still in place, so the UI can say so
     /// rather than silently failing every upload against example.com.

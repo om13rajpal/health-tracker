@@ -17,12 +17,16 @@ final class HealthKitAuthManager {
     // Workouts, category samples (sleep/stand/mindful/event types), and mood
     // are all read-only (see WorkoutSyncCoordinator/CategorySyncCoordinator/
     // MoodSyncCoordinator) — included in readTypes so the single
-    // authorization request covers them too, never in writeTypes since
-    // nothing in this app creates any of this data. Mood
-    // (HKObjectType.stateOfMindType()) only exists on iOS 18+ — confirmed by
-    // a real compiler error against this app's iOS 17.0 deployment target —
-    // so it's added at runtime via #available rather than unconditionally,
-    // which would fail to compile at all.
+    // authorization request covers them too. Mood (HKObjectType.stateOfMindType())
+    // only exists on iOS 18+ — confirmed by a real compiler error against
+    // this app's iOS 17.0 deployment target — so it's added at runtime via
+    // #available rather than unconditionally, which would fail to compile
+    // at all.
+    //
+    // This app never shares/writes anything to HealthKit — it only ever
+    // reads. Health data belongs to the Health app; a bridge that also wrote
+    // to it would make Health an unreliable source of truth for anything
+    // this app or another app derived from it.
     static let readTypes: Set<HKSampleType> = {
         var types = Set(HealthMetric.allCases.map(\.sampleType))
             .union([HKObjectType.workoutType()])
@@ -32,7 +36,6 @@ final class HealthKitAuthManager {
         }
         return types
     }()
-    static let writeTypes: Set<HKSampleType> = Set(HealthMetric.allCases.filter(\.isWritable).map(\.sampleType))
 
     init(
         healthStore: HKHealthStore = .init(),
@@ -47,7 +50,7 @@ final class HealthKitAuthManager {
                 ])
             }
             try await healthStore.requestAuthorization(
-                toShare: Self.writeTypes,
+                toShare: [],
                 read: Set(Self.readTypes.map { $0 as HKObjectType })
             )
         }

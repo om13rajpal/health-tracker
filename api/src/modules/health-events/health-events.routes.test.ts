@@ -7,7 +7,6 @@ import { HealthSample } from "../../models/HealthSample.js";
 import { HealthWorkout } from "../../models/HealthWorkout.js";
 import { HealthCategorySample } from "../../models/HealthCategorySample.js";
 import { Mood } from "../../models/Mood.js";
-import { PendingWrite } from "../../models/PendingWrite.js";
 
 let mongod: MongoMemoryServer;
 
@@ -26,7 +25,6 @@ afterEach(async () => {
   await HealthWorkout.deleteMany({});
   await HealthCategorySample.deleteMany({});
   await Mood.deleteMany({});
-  await PendingWrite.deleteMany({});
 });
 
 afterAll(async () => {
@@ -241,87 +239,5 @@ describe("POST /api/health-events/mood", () => {
         date: "2026-09-06T20:00:00.000Z",
       });
     expect(res.status).toBe(400);
-  });
-});
-
-describe("GET /api/health-events/pending-writes", () => {
-  it("returns 401 without a bearer token", async () => {
-    const res = await request(createApp()).get("/api/health-events/pending-writes");
-    expect(res.status).toBe(401);
-  });
-
-  it("returns only undelivered pending writes, oldest first", async () => {
-    const undelivered = await PendingWrite.create({
-      metric: "steps",
-      value: 1200,
-      timestamp: new Date("2026-09-01T10:00:00Z"),
-      delivered: false,
-    });
-    await PendingWrite.create({
-      metric: "weight",
-      value: 70.2,
-      unit: "kg",
-      timestamp: new Date("2026-09-01T09:00:00Z"),
-      delivered: true,
-      deliveredAt: new Date(),
-    });
-
-    const res = await request(createApp())
-      .get("/api/health-events/pending-writes")
-      .set("Authorization", "Bearer test-ingestion-token");
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([
-      {
-        id: undelivered._id.toString(),
-        metric: "steps",
-        value: 1200,
-        timestamp: "2026-09-01T10:00:00.000Z",
-      },
-    ]);
-  });
-});
-
-describe("POST /api/health-events/pending-writes/:id/ack", () => {
-  it("returns 401 without a bearer token", async () => {
-    const res = await request(createApp()).post(
-      "/api/health-events/pending-writes/000000000000000000000000/ack"
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it("returns 404 for an unknown id", async () => {
-    const res = await request(createApp())
-      .post("/api/health-events/pending-writes/000000000000000000000000/ack")
-      .set("Authorization", "Bearer test-ingestion-token");
-    expect(res.status).toBe(404);
-  });
-
-  it("returns 400 for a malformed id", async () => {
-    const res = await request(createApp())
-      .post("/api/health-events/pending-writes/not-a-valid-id/ack")
-      .set("Authorization", "Bearer test-ingestion-token");
-    expect(res.status).toBe(400);
-  });
-
-  it("marks a pending write delivered", async () => {
-    const doc = await PendingWrite.create({
-      metric: "heart_rate",
-      value: 62,
-      unit: "count/min",
-      timestamp: new Date("2026-09-01T10:00:00Z"),
-      delivered: false,
-    });
-
-    const res = await request(createApp())
-      .post(`/api/health-events/pending-writes/${doc._id.toString()}/ack`)
-      .set("Authorization", "Bearer test-ingestion-token");
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ acked: true });
-
-    const updated = await PendingWrite.findById(doc._id);
-    expect(updated?.delivered).toBe(true);
-    expect(updated?.deliveredAt).toBeInstanceOf(Date);
   });
 });

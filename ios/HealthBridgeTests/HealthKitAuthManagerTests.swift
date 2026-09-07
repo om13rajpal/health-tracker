@@ -52,20 +52,6 @@ final class HealthKitAuthManagerTests: XCTestCase {
         }
     }
 
-    // Apple reserves write access to a handful of derived/computed metrics
-    // (e.g. walking heart rate average, Apple Exercise Time) — requesting
-    // `toShare:` authorization for one of these throws an uncaught
-    // NSInvalidArgumentException at runtime, not a catchable Swift error, so
-    // writeTypes must exclude them before ever calling requestAuthorization.
-    func testWriteTypesExcludeMetricsAppleDoesNotAllowThirdPartyAppsToShare() {
-        let nonWritable = HealthMetric.allCases.filter { !$0.isWritable }
-        XCTAssertFalse(nonWritable.isEmpty, "this test is meaningless if every metric is writable")
-        XCTAssertEqual(HealthKitAuthManager.writeTypes.count, HealthMetric.allCases.count - nonWritable.count)
-        for metric in nonWritable {
-            XCTAssertFalse(HealthKitAuthManager.writeTypes.contains(metric.sampleType))
-        }
-    }
-
     func testRequestAuthorizationSurfacesAFailureInsteadOfSwallowingIt() async {
         // A real device with HealthKit unavailable (e.g. some iPad models) or
         // any other authorization-request failure must be visible somewhere,

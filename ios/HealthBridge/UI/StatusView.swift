@@ -97,6 +97,23 @@ struct StatusView: View {
                         }
                     }
                 }
+
+                if let eventRows = viewModel?.eventRows, !eventRows.isEmpty {
+                    Section {
+                        ForEach(eventRows) { row in
+                            EventRow(row: row)
+                        }
+                    } header: {
+                        Text("Recorded automatically")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(BridgeTheme.ink)
+                            .textCase(nil)
+                    } footer: {
+                        Text("Workouts, sleep, and event data from Apple Health. There's no switch for these — HealthBridge only ever reads from Health, never writes back to it, and each syncs the moment HealthKit has something new to send.")
+                            .font(.caption)
+                            .foregroundStyle(BridgeTheme.inkFaint)
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -219,6 +236,34 @@ private struct MetricRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(row.displayName))
         .accessibilityValue(Text(row.errorMessage ?? row.lastSyncDescription))
+    }
+}
+
+/// The read-only counterpart to `MetricRow` for workouts, category samples,
+/// and mood — a status line with no toggle, since there's nothing to switch.
+private struct EventRow: View {
+    let row: EventSyncRow
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(row.displayName)
+                    .font(.body)
+                    .foregroundStyle(BridgeTheme.ink)
+                Text(row.lastSyncDescription)
+                    .font(.caption)
+                    .foregroundStyle(row.lastSync == nil ? BridgeTheme.inkFaint : BridgeTheme.inkSoft)
+                    .monospacedDigit()
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.caption)
+                .foregroundStyle(BridgeTheme.inkFaint)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(row.displayName))
+        .accessibilityValue(Text(row.lastSyncDescription))
     }
 }
 

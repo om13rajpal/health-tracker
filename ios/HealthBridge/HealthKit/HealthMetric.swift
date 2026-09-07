@@ -153,28 +153,6 @@ enum HealthMetric: String, CaseIterable, Codable {
         }
     }
 
-    // HealthKit rejects `requestAuthorization(toShare:)` for the whole batch
-    // (not just the offending type) if ANY requested share type is one Apple
-    // reserves for its own apps/Watch algorithms to write — confirmed at
-    // runtime via `HKHealthStore.requestAuthorization`'s "Authorization to
-    // share the following types is disallowed" exception. Every metric here
-    // that is device-computed/derived rather than something a third-party
-    // app would ever plausibly report is excluded from writeTypes; verified
-    // empirically (see HealthKitAuthManagerTests) rather than assumed.
-    var isWritable: Bool {
-        switch self {
-        case .walkingHeartRate, .exerciseMinutes,
-            .walkingSpeed, .walkingStepLength, .walkingAsymmetryPercentage, .walkingDoubleSupportPercentage,
-            .stairAscentSpeed, .stairDescentSpeed, .sixMinuteWalkTestDistance, .walkingSteadiness,
-            .runningSpeed, .runningPower, .runningStrideLength, .runningVerticalOscillation, .runningGroundContactTime,
-            .cyclingSpeed, .cyclingPower, .cyclingCadence, .cyclingFunctionalThresholdPower,
-            .environmentalAudioExposure, .headphoneAudioExposure, .physicalEffort, .sleepingWristTemperature:
-            return false
-        default:
-            return true
-        }
-    }
-
     var displayName: String {
         switch self {
         case .heartRate: return "Heart Rate"
@@ -270,6 +248,21 @@ enum HealthCategoryMetric: String, CaseIterable, Codable {
         case .toothbrushingEvent: return HKObjectType.categoryType(forIdentifier: .toothbrushingEvent)!
         case .walkingSteadinessEvent: return HKObjectType.categoryType(forIdentifier: .appleWalkingSteadinessEvent)!
         case .lowCardioFitnessEvent: return HKObjectType.categoryType(forIdentifier: .lowCardioFitnessEvent)!
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .sleepAnalysis: return "Sleep"
+        case .standHour: return "Stand Hours"
+        case .mindfulSession: return "Mindful Minutes"
+        case .highHeartRateEvent: return "High Heart Rate Events"
+        case .lowHeartRateEvent: return "Low Heart Rate Events"
+        case .irregularHeartRhythmEvent: return "Irregular Rhythm Notifications"
+        case .handwashingEvent: return "Handwashing"
+        case .toothbrushingEvent: return "Toothbrushing"
+        case .walkingSteadinessEvent: return "Walking Steadiness Events"
+        case .lowCardioFitnessEvent: return "Low Cardio Fitness Events"
         }
     }
 

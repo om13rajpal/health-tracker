@@ -25,3 +25,16 @@ struct StatusRow: Identifiable, Equatable {
         return id.searchAliases.contains { $0.contains(needle) }
     }
 }
+
+/// Workouts, category samples (sleep, stand hours, event markers) and mood
+/// aren't `HealthMetric` cases and have no per-item on/off switch — they sync
+/// as a whole whenever HealthKit authorization allows it, the same immediate
+/// background-delivery mechanism every toggleable metric uses. This is the
+/// read-only counterpart to `StatusRow` for that data, so its sync state is
+/// still visible even though there's nothing to toggle.
+struct EventSyncRow: Identifiable, Equatable {
+    let id: String
+    let displayName: String
+    let lastSyncDescription: String
+    let lastSync: Date?
+}

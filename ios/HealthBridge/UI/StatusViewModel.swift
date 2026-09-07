@@ -10,6 +10,8 @@ final class StatusViewModel {
     private var deliveryErrors: [HealthMetric: String] = [:]
 
     private(set) var rows: [StatusRow] = []
+    /// Workouts, category samples, and mood — see `EventSyncRow`.
+    private(set) var eventRows: [EventSyncRow] = []
 
     init(
         authManager: HealthKitAuthManager,
@@ -25,6 +27,7 @@ final class StatusViewModel {
     }
 
     func refresh() {
+        let currentTime = now()
         rows = HealthMetric.allCases.map { metric in
             let isEnabled = authManager.isEnabled(metric)
             let lastSync = lastSyncStore.lastSync(for: metric)
@@ -32,9 +35,31 @@ final class StatusViewModel {
                 id: metric,
                 displayName: metric.displayName,
                 isEnabled: isEnabled,
-                lastSyncDescription: Self.relativeDescription(for: lastSync, now: now()),
+                lastSyncDescription: Self.relativeDescription(for: lastSync, now: currentTime),
                 lastSync: lastSync,
                 errorMessage: isEnabled ? deliveryErrors[metric] : nil
+            )
+        }
+        eventRows = Self.buildEventRows(lastSyncStore: lastSyncStore, now: currentTime)
+    }
+
+    /// Workouts and category events always sync once authorized, keyed by
+    /// the same string keys `WorkoutSyncCoordinator`/`CategorySyncCoordinator`
+    /// record against. Mood only exists from iOS 18 on — see
+    /// `MoodSyncCoordinator`'s own doc comment for why.
+    private static func buildEventRows(lastSyncStore: LastSyncStore, now: Date) -> [EventSyncRow] {
+        var items: [(key: String, name: String)] = [("workouts", "Workouts")]
+        items += HealthCategoryMetric.allCases.map { ($0.rawValue, $0.displayName) }
+        if #available(iOS 18.0, *) {
+            items.append(("mood", "Mood"))
+        }
+        return items.map { item in
+            let lastSync = lastSyncStore.lastSync(forKey: item.key)
+            return EventSyncRow(
+                id: item.key,
+                displayName: item.name,
+                lastSyncDescription: relativeDescription(for: lastSync, now: now),
+                lastSync: lastSync
             )
         }
     }
