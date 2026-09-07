@@ -20,7 +20,10 @@ healthEventsRouter.post(
     }
 
     const normalized = normalizeHealthEvent(parsed.data);
-    await HealthSample.create(normalized);
+    const alreadyStored = await HealthSample.exists({ metric: normalized.metric, timestamp: normalized.timestamp });
+    if (!alreadyStored) {
+      await HealthSample.create(normalized);
+    }
     res.status(201).json({ stored: true });
   }
 );
@@ -37,15 +40,24 @@ healthEventsRouter.post(
       return;
     }
 
-    await HealthWorkout.create({
-      source: parsed.data.source,
+    const startDate = new Date(parsed.data.startDate);
+    const endDate = new Date(parsed.data.endDate);
+    const alreadyStored = await HealthWorkout.exists({
       activityType: parsed.data.activityType,
-      startDate: new Date(parsed.data.startDate),
-      endDate: new Date(parsed.data.endDate),
-      durationSeconds: parsed.data.durationSeconds,
-      totalEnergyBurnedKcal: parsed.data.totalEnergyBurnedKcal,
-      totalDistanceMeters: parsed.data.totalDistanceMeters,
+      startDate,
+      endDate,
     });
+    if (!alreadyStored) {
+      await HealthWorkout.create({
+        source: parsed.data.source,
+        activityType: parsed.data.activityType,
+        startDate,
+        endDate,
+        durationSeconds: parsed.data.durationSeconds,
+        totalEnergyBurnedKcal: parsed.data.totalEnergyBurnedKcal,
+        totalDistanceMeters: parsed.data.totalDistanceMeters,
+      });
+    }
     res.status(201).json({ stored: true });
   }
 );
@@ -61,13 +73,22 @@ healthEventsRouter.post(
       return;
     }
 
-    await HealthCategorySample.create({
-      source: parsed.data.source,
+    const startDate = new Date(parsed.data.startDate);
+    const endDate = new Date(parsed.data.endDate);
+    const alreadyStored = await HealthCategorySample.exists({
       category: parsed.data.category,
-      value: parsed.data.value,
-      startDate: new Date(parsed.data.startDate),
-      endDate: new Date(parsed.data.endDate),
+      startDate,
+      endDate,
     });
+    if (!alreadyStored) {
+      await HealthCategorySample.create({
+        source: parsed.data.source,
+        category: parsed.data.category,
+        value: parsed.data.value,
+        startDate,
+        endDate,
+      });
+    }
     res.status(201).json({ stored: true });
   }
 );
@@ -83,15 +104,19 @@ healthEventsRouter.post(
       return;
     }
 
-    await Mood.create({
-      source: parsed.data.source,
-      kind: parsed.data.kind,
-      valence: parsed.data.valence,
-      valenceClassification: parsed.data.valenceClassification,
-      labels: parsed.data.labels,
-      associations: parsed.data.associations,
-      date: new Date(parsed.data.date),
-    });
+    const date = new Date(parsed.data.date);
+    const alreadyStored = await Mood.exists({ kind: parsed.data.kind, date });
+    if (!alreadyStored) {
+      await Mood.create({
+        source: parsed.data.source,
+        kind: parsed.data.kind,
+        valence: parsed.data.valence,
+        valenceClassification: parsed.data.valenceClassification,
+        labels: parsed.data.labels,
+        associations: parsed.data.associations,
+        date,
+      });
+    }
     res.status(201).json({ stored: true });
   }
 );

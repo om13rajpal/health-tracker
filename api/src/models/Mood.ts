@@ -14,4 +14,8 @@ const moodSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// See HealthSample's matching index comment — same re-delivery-after-anchor-
+// reset problem, same fix.
+moodSchema.index({ kind: 1, date: 1 });
+
 export const Mood = model("Mood", moodSchema);

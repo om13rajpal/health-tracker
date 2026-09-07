@@ -14,4 +14,8 @@ const healthCategorySampleSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// See HealthSample's matching index comment — same re-delivery-after-anchor-
+// reset problem, same fix.
+healthCategorySampleSchema.index({ category: 1, startDate: 1, endDate: 1 });
+
 export const HealthCategorySample = model("HealthCategorySample", healthCategorySampleSchema);

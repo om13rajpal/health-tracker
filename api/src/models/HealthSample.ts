@@ -22,4 +22,11 @@ const healthSampleSchema = new Schema(
   }
 );
 
+// A HealthKit anchored query re-delivers a metric's whole history whenever
+// the app's local sync anchor is reset (e.g. an uninstall/reinstall wipes
+// the UserDefaults it's stored in) — this index is what a pre-insert
+// existence check in the route filters against to keep that idempotent
+// instead of duplicating every sample.
+healthSampleSchema.index({ metric: 1, timestamp: 1 });
+
 export const HealthSample = model("HealthSample", healthSampleSchema);

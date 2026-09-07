@@ -70,6 +70,31 @@ describe("POST /api/health-events", () => {
     expect(stored[0].value).toBe(4000);
   });
 
+  // A reset local sync anchor (e.g. an app reinstall) makes HealthKit
+  // re-deliver a metric's whole history — the same sample arrives again
+  // with the same metric+timestamp, and must not be stored twice.
+  it("does not duplicate a sample re-delivered after a sync anchor reset", async () => {
+    const app = createApp();
+    const payload = {
+      source: "ios-bridge",
+      metric: "steps",
+      timestamp: "2026-09-06T08:00:00.000Z",
+      value: 4000,
+    };
+    const first = await request(app)
+      .post("/api/health-events")
+      .set("Authorization", "Bearer test-ingestion-token")
+      .send(payload);
+    const second = await request(app)
+      .post("/api/health-events")
+      .set("Authorization", "Bearer test-ingestion-token")
+      .send(payload);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(await HealthSample.find({})).toHaveLength(1);
+  });
+
   it("rejects a malformed payload with 400", async () => {
     const app = createApp();
     const res = await request(app)
@@ -114,6 +139,21 @@ describe("POST /api/health-events/workouts", () => {
     expect(stored[0].activityType).toBe("running");
     expect(stored[0].durationSeconds).toBe(1800);
     expect(stored[0].totalDistanceMeters).toBe(5000);
+  });
+
+  it("does not duplicate a workout re-delivered after a sync anchor reset", async () => {
+    const app = createApp();
+    const payload = {
+      source: "ios-bridge",
+      activityType: "running",
+      startDate: "2026-09-06T08:00:00.000Z",
+      endDate: "2026-09-06T08:30:00.000Z",
+      durationSeconds: 1800,
+    };
+    await request(app).post("/api/health-events/workouts").set("Authorization", "Bearer test-ingestion-token").send(payload);
+    await request(app).post("/api/health-events/workouts").set("Authorization", "Bearer test-ingestion-token").send(payload);
+
+    expect(await HealthWorkout.find({})).toHaveLength(1);
   });
 
   it("stores a workout with no energy/distance (e.g. a strength workout HealthKit has no distance for)", async () => {
