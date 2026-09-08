@@ -59,7 +59,7 @@ struct StatusView: View {
                 }
 
                 Section {
-                    Picker("Show", selection: $filter) {
+                    Picker("Show", selection: $filter.animation(.easeInOut(duration: 0.2))) {
                         ForEach(MetricFilter.allCases) { option in
                             Text(option.label).tag(option)
                         }
@@ -77,20 +77,25 @@ struct StatusView: View {
                         EmptyResult(filter: filter, searchText: searchText)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            .transition(.opacity.combined(with: .scale(scale: 0.97)))
                     }
                 } else {
                     ForEach(sections) { section in
                         Section {
                             ForEach(section.rows) { row in
                                 MetricRow(row: row) { newValue in
-                                    viewModel?.setEnabled(newValue, for: row.id)
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        viewModel?.setEnabled(newValue, for: row.id)
+                                    }
                                 }
                             }
                         } header: {
                             SectionHeader(
                                 section: section,
                                 onSetAll: { enabled in
-                                    viewModel?.setEnabled(enabled, forGroup: section.group)
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        viewModel?.setEnabled(enabled, forGroup: section.group)
+                                    }
                                 }
                             )
                         } footer: {
@@ -195,9 +200,14 @@ private struct SyncHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Streaming to the ledger")
-                    .font(.caption)
-                    .foregroundStyle(BridgeTheme.onBandSoft)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(accent)
+                        .frame(width: 6, height: 6)
+                    Text("Streaming to the ledger")
+                        .font(.caption)
+                        .foregroundStyle(BridgeTheme.onBandSoft)
+                }
                 Spacer()
                 Button(action: onSyncNow) {
                     HStack(spacing: 5) {
@@ -209,6 +219,7 @@ private struct SyncHeader: View {
                         Text(isSyncingNow ? "Syncing…" : "Sync now")
                     }
                     .font(.caption.weight(.semibold))
+                    .contentTransition(.opacity)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(BridgeTheme.onBand)
@@ -219,6 +230,7 @@ private struct SyncHeader: View {
                 Text("\(summary?.enabled ?? 0)")
                     .font(BridgeTheme.reading(44, weight: .heavy))
                     .foregroundStyle(accent)
+                    .contentTransition(.numericText())
                 Text("of \(summary?.total ?? HealthMetric.allCases.count) metrics")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(BridgeTheme.onBandSoft)
@@ -228,6 +240,7 @@ private struct SyncHeader: View {
                 .font(.footnote)
                 .foregroundStyle(BridgeTheme.onBand)
                 .fixedSize(horizontal: false, vertical: true)
+                .contentTransition(.opacity)
 
             Text("iOS decides when background delivery runs on its own — tap Sync now to try immediately, which works best with the app open.")
                 .font(.caption2)
@@ -237,11 +250,10 @@ private struct SyncHeader: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(BridgeTheme.band)
-        .overlay(alignment: .leading) {
-            Rectangle().fill(accent).frame(width: 3)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.vertical, 4)
+        .animation(.easeInOut(duration: 0.3), value: accent)
+        .animation(.easeInOut(duration: 0.3), value: isSyncingNow)
     }
 }
 
