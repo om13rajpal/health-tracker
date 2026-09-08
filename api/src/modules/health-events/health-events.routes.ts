@@ -6,6 +6,7 @@ import { HealthWorkout } from "../../models/HealthWorkout.js";
 import { HealthCategorySample } from "../../models/HealthCategorySample.js";
 import { Mood } from "../../models/Mood.js";
 import { requireBearerToken } from "../../lib/bearerAuth.js";
+import { syncSleepFromHealthKit } from "../sleep/sleep.service.js";
 
 export const healthEventsRouter = Router();
 
@@ -88,6 +89,12 @@ healthEventsRouter.post(
         startDate,
         endDate,
       });
+      // Only on a genuinely new segment, not a re-delivered duplicate — the
+      // full re-cluster is cheap at this app's scale, but there is no reason
+      // to pay it on every dedupe-skipped repeat during a chunked backfill.
+      if (parsed.data.category === "sleep_analysis") {
+        await syncSleepFromHealthKit();
+      }
     }
     res.status(201).json({ stored: true });
   }

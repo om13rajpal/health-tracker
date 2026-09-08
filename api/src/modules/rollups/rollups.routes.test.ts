@@ -38,10 +38,21 @@ describe("GET /api/rollups", () => {
     const app = createApp();
     const agent = request.agent(app);
     await agent.post("/api/auth/login").send({ password: "test-password" });
-    const res = await agent.get("/api/rollups?from=2026-09-05&to=2026-09-15");
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].totalSteps).toBe(8000);
+
+    // Pinned outside the queried window — otherwise this test's pass/fail
+    // would depend on whatever the real current date happens to be, since
+    // listRollups always injects a live "today" entry when today falls
+    // inside the requested range (covered on its own below).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    try {
+      const res = await agent.get("/api/rollups?from=2026-09-05&to=2026-09-15");
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].totalSteps).toBe(8000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("includes today's IST rollup when the default window is computed before 05:30 IST", async () => {

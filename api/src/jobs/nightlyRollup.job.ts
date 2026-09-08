@@ -1,6 +1,8 @@
+import type { HealthMetric } from "@health-tracker/shared";
 import { HealthSample } from "../models/HealthSample.js";
 import { FoodEntry } from "../models/FoodEntry.js";
 import { WorkoutSession } from "../models/WorkoutSession.js";
+import { SleepSession } from "../models/SleepSession.js";
 import { DailyRollup } from "../models/DailyRollup.js";
 import { istDateRangeUtc } from "../lib/dates.js";
 
@@ -8,14 +10,33 @@ import { istDateRangeUtc } from "../lib/dates.js";
 // engine's spec-mandated MAX_RIR_TO_COUNT_AS_HARD (3) — do not unify them.
 const HARD_SET_MAX_RIR = 4;
 
+async function sumMetric(metric: HealthMetric, start: Date, end: Date): Promise<number | undefined> {
+  const samples = await HealthSample.find({ metric, timestamp: { $gte: start, $lt: end } });
+  if (samples.length === 0) return undefined;
+  return samples.reduce((sum, sample) => sum + sample.value, 0);
+}
+
+async function averageMetric(metric: HealthMetric, start: Date, end: Date): Promise<number | undefined> {
+  const samples = await HealthSample.find({ metric, timestamp: { $gte: start, $lt: end } });
+  if (samples.length === 0) return undefined;
+  return samples.reduce((sum, sample) => sum + sample.value, 0) / samples.length;
+}
+
+async function latestMetric(metric: HealthMetric, start: Date, end: Date): Promise<number | undefined> {
+  const latest = await HealthSample.findOne({ metric, timestamp: { $gte: start, $lt: end } }).sort({ timestamp: -1 });
+  return latest?.value;
+}
+
 export async function computeDailyRollup(date: string) {
   const { start, end } = istDateRangeUtc(date);
 
-  const stepSamples = await HealthSample.find({
-    metric: "steps",
-    timestamp: { $gte: start, $lt: end },
-  });
-  const totalSteps = stepSamples.reduce((sum, sample) => sum + sample.value, 0);
+  const totalSteps = (await sumMetric("steps", start, end)) ?? 0;
+  const restingHeartRate = await averageMetric("resting_heart_rate", start, end);
+  const activeCalories = await sumMetric("active_energy", start, end);
+  const weightKg = await latestMetric("weight", start, end);
+
+  const sleepSession = await SleepSession.findOne({ date });
+  const sleepMidpoint = sleepSession?.midpoint;
 
   const foodEntries = await FoodEntry.find({ date });
   const proteinG = foodEntries.reduce((sum, entry) => sum + entry.macros.proteinG, 0);
@@ -38,7 +59,7 @@ export async function computeDailyRollup(date: string) {
 
   return DailyRollup.findOneAndUpdate(
     { date },
-    { date, totalSteps, proteinG, totalCalories, hardSets },
+    { date, totalSteps, restingHeartRate, activeCalories, weightKg, sleepMidpoint, proteinG, totalCalories, hardSets },
     { upsert: true, returnDocument: "after" }
   );
 }
