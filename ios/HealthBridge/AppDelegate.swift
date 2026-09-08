@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     static let moodUploadSessionIdentifier = "com.healthtracker.iosbridge.background-upload-mood"
 
     let authManager = HealthKitAuthManager()
+    let eventSyncErrors = EventSyncErrorStore()
     let uploadSession = BackgroundUploadSession()
     let workoutUploadSession = BackgroundUploadSession(identifier: AppDelegate.workoutUploadSessionIdentifier)
     let categoryUploadSession = BackgroundUploadSession(identifier: AppDelegate.categoryUploadSessionIdentifier)
@@ -75,8 +76,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         return coordinator
     }
 
+    override init() {
+        super.init()
+        // Wired here, once, rather than in the status UI's onAppear the way
+        // the quantity-metric coordinator's is — these three had nowhere to
+        // report an error to at all before EventSyncErrorStore existed, and
+        // wiring at construction means an error is captured even if the
+        // status screen is never opened.
+        workoutCoordinator.onDeliveryError = { [weak eventSyncErrors] message in
+            eventSyncErrors?.record(message, for: "workouts")
+        }
+        categoryCoordinator.onDeliveryError = { [weak eventSyncErrors] category, message in
+            eventSyncErrors?.record(message, for: category.rawValue)
+        }
+        if #available(iOS 18.0, *) {
+            moodCoordinator.onDeliveryError = { [weak eventSyncErrors] message in
+                eventSyncErrors?.record(message, for: "mood")
+            }
+        }
+    }
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        startAllObservers()
+        syncAllNow()
 
         // `requestAuthorizationIfNeeded()` is async and @MainActor-isolated, but
         // `didFinishLaunchingWithOptions` is synchronous — fire-and-forget rather than
@@ -87,13 +108,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // observation within this same process lifetime instead of relying on a relaunch.
         Task { @MainActor in
             await self.authManager.requestAuthorizationIfNeeded()
-            self.startAllObservers()
+            self.syncAllNow()
         }
 
         return true
     }
 
-    private func startAllObservers() {
+    /// Re-arms every coordinator's `HKObserverQuery`, which fires an
+    /// immediate trigger on `execute()` per Apple's documented behavior —
+    /// so this is also how a fresh sync attempt gets kicked off, whether at
+    /// launch, on the app coming to the foreground (no tight background
+    /// execution budget to worry about there), or from the status screen's
+    /// manual "Sync now" action. `setObserverQuery`/the coordinators' own
+    /// `observerQuery` slots stop any previous query before installing the
+    /// new one, so calling this repeatedly is safe rather than piling up
+    /// duplicate observers.
+    func syncAllNow() {
         coordinator.startObserving()
         workoutCoordinator.startObserving()
         categoryCoordinator.startObserving()

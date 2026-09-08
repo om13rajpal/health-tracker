@@ -6,6 +6,7 @@ final class StatusViewModel {
     private let authManager: HealthKitAuthManager
     private let lastSyncStore: LastSyncStore
     private weak var deliveryToggle: BackgroundDeliveryToggling?
+    private let eventSyncErrors: EventSyncErrorStore?
     private let now: () -> Date
     private var deliveryErrors: [HealthMetric: String] = [:]
 
@@ -17,11 +18,13 @@ final class StatusViewModel {
         authManager: HealthKitAuthManager,
         lastSyncStore: LastSyncStore,
         deliveryToggle: BackgroundDeliveryToggling?,
+        eventSyncErrors: EventSyncErrorStore? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.authManager = authManager
         self.lastSyncStore = lastSyncStore
         self.deliveryToggle = deliveryToggle
+        self.eventSyncErrors = eventSyncErrors
         self.now = now
         refresh()
     }
@@ -40,14 +43,14 @@ final class StatusViewModel {
                 errorMessage: isEnabled ? deliveryErrors[metric] : nil
             )
         }
-        eventRows = Self.buildEventRows(lastSyncStore: lastSyncStore, now: currentTime)
+        eventRows = Self.buildEventRows(lastSyncStore: lastSyncStore, eventSyncErrors: eventSyncErrors, now: currentTime)
     }
 
     /// Workouts and category events always sync once authorized, keyed by
     /// the same string keys `WorkoutSyncCoordinator`/`CategorySyncCoordinator`
     /// record against. Mood only exists from iOS 18 on — see
     /// `MoodSyncCoordinator`'s own doc comment for why.
-    private static func buildEventRows(lastSyncStore: LastSyncStore, now: Date) -> [EventSyncRow] {
+    private static func buildEventRows(lastSyncStore: LastSyncStore, eventSyncErrors: EventSyncErrorStore?, now: Date) -> [EventSyncRow] {
         var items: [(key: String, name: String)] = [("workouts", "Workouts")]
         items += HealthCategoryMetric.allCases.map { ($0.rawValue, $0.displayName) }
         if #available(iOS 18.0, *) {
@@ -59,7 +62,8 @@ final class StatusViewModel {
                 id: item.key,
                 displayName: item.name,
                 lastSyncDescription: relativeDescription(for: lastSync, now: now),
-                lastSync: lastSync
+                lastSync: lastSync,
+                errorMessage: eventSyncErrors?.errors[item.key]
             )
         }
     }

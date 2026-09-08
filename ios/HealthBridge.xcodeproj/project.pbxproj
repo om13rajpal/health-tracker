@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D3E4F5A6B7C8D9E0F1A2B3C4 /* SyncAllNowEnvironmentKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F5A6B7C8D9E0F1A2B3C4D5 /* SyncAllNowEnvironmentKey.swift */; };
 		B1E2A3C4D5E6F7A8B9C0D1E2 /* HealthUnitMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D3E4F5A6B7C8D9E0F1A2B3 /* HealthUnitMapper.swift */; };
 		0F5FB6EE25E910421C8A1F4E /* BackgroundUploadSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98A59D363BA8936BB288B288 /* BackgroundUploadSessionTests.swift */; };
 		15A5DE4082D9B08220380C13 /* HealthKitAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B01D2246D0AA033EA0E4639 /* HealthKitAuthManager.swift */; };
@@ -49,6 +50,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E4F5A6B7C8D9E0F1A2B3C4D5 /* SyncAllNowEnvironmentKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAllNowEnvironmentKey.swift; sourceTree = "<group>"; };
 		C2D3E4F5A6B7C8D9E0F1A2B3 /* HealthUnitMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthUnitMapper.swift; sourceTree = "<group>"; };
 		0672A6C5699B049A5FEAD582 /* SyncAnchorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAnchorStore.swift; sourceTree = "<group>"; };
 		09795789CAA20C3056E72364 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 				A7558B456D96C35440544B07 /* StatusViewModel.swift */,
 				9D1CDDA82A886F9F4F8DDE76 /* StatusView.swift */,
 				1249EF2713F473014CD19858 /* HealthObserverCoordinatorEnvironmentKey.swift */,
+				E4F5A6B7C8D9E0F1A2B3C4D5 /* SyncAllNowEnvironmentKey.swift */,
 				A1B2C3D4E5F6A1B2C3D4E506 /* StatusSummary.swift */,
 				A1B2C3D4E5F6A1B2C3D4E504 /* BridgeTheme.swift */,
 			);
@@ -335,6 +338,7 @@
 				174F3B028663843CB9AE75D9 /* StatusViewModel.swift in Sources */,
 				9811D1D22F4BFC5302817EF7 /* StatusView.swift in Sources */,
 				E9B8AA3F4281E030A8DFE64B /* HealthObserverCoordinatorEnvironmentKey.swift in Sources */,
+				D3E4F5A6B7C8D9E0F1A2B3C4 /* SyncAllNowEnvironmentKey.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

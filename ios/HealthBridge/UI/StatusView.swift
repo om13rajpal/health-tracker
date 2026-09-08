@@ -3,16 +3,19 @@ import SwiftUI
 struct StatusView: View {
     @Environment(HealthKitAuthManager.self) private var authManager
     @Environment(\.healthObserverCoordinator) private var deliveryToggle
+    @Environment(\.syncAllNow) private var syncAllNow
     let lastSyncStore: LastSyncStore
+    let eventSyncErrors: EventSyncErrorStore?
     @State private var viewModel: StatusViewModel?
     @State private var filter: MetricFilter = .on
     @State private var searchText = ""
+    @State private var isSyncingNow = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    SyncHeader(summary: viewModel?.summary)
+                    SyncHeader(summary: viewModel?.summary, isSyncingNow: isSyncingNow, onSyncNow: syncNow)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -127,7 +130,8 @@ struct StatusView: View {
                     let vm = StatusViewModel(
                         authManager: authManager,
                         lastSyncStore: lastSyncStore,
-                        deliveryToggle: deliveryToggle
+                        deliveryToggle: deliveryToggle,
+                        eventSyncErrors: eventSyncErrors
                     )
                     if let coordinator = deliveryToggle as? HealthObserverCoordinator {
                         coordinator.onDeliveryError = { [weak vm] metric, message in
@@ -151,6 +155,23 @@ struct StatusView: View {
             }
         }
     }
+
+    /// A visible, tappable counterpart to the passive background-delivery
+    /// sync — see `AppDelegate.syncAllNow()`. `isSyncingNow` is an honest
+    /// "a sync attempt is running" indicator, not a progress bar: there's no
+    /// way to know from here how much a coordinator still has left to drain,
+    /// so it just holds "Syncing…" for a few seconds and then refreshes the
+    /// rows, which is enough time for a small delta (the common case) to
+    /// land and show an updated "Last synced" time.
+    private func syncNow() {
+        syncAllNow?()
+        isSyncingNow = true
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            viewModel?.refresh()
+            isSyncingNow = false
+        }
+    }
 }
 
 // MARK: - Header
@@ -159,6 +180,8 @@ struct StatusView: View {
 /// actually reaching the server?" before any toggle is visible.
 private struct SyncHeader: View {
     let summary: StatusSummary?
+    let isSyncingNow: Bool
+    let onSyncNow: () -> Void
 
     private var accent: Color {
         switch summary?.state {
@@ -171,9 +194,26 @@ private struct SyncHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Streaming to the ledger")
-                .font(.caption)
-                .foregroundStyle(BridgeTheme.onBandSoft)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Streaming to the ledger")
+                    .font(.caption)
+                    .foregroundStyle(BridgeTheme.onBandSoft)
+                Spacer()
+                Button(action: onSyncNow) {
+                    HStack(spacing: 5) {
+                        if isSyncingNow {
+                            ProgressView().tint(BridgeTheme.onBand).scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                        }
+                        Text(isSyncingNow ? "Syncing…" : "Sync now")
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(BridgeTheme.onBand)
+                .disabled(isSyncingNow)
+            }
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(summary?.enabled ?? 0)")
@@ -189,7 +229,7 @@ private struct SyncHeader: View {
                 .foregroundStyle(BridgeTheme.onBand)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("iOS decides when background delivery runs, so this is never live to the second.")
+            Text("iOS decides when background delivery runs on its own — tap Sync now to try immediately, which works best with the app open.")
                 .font(.caption2)
                 .foregroundStyle(BridgeTheme.onBandSoft)
                 .fixedSize(horizontal: false, vertical: true)
@@ -250,20 +290,26 @@ private struct EventRow: View {
                 Text(row.displayName)
                     .font(.body)
                     .foregroundStyle(BridgeTheme.ink)
-                Text(row.lastSyncDescription)
-                    .font(.caption)
-                    .foregroundStyle(row.lastSync == nil ? BridgeTheme.inkFaint : BridgeTheme.inkSoft)
-                    .monospacedDigit()
+                if let errorMessage = row.errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(BridgeTheme.bad)
+                } else {
+                    Text(row.lastSyncDescription)
+                        .font(.caption)
+                        .foregroundStyle(row.lastSync == nil ? BridgeTheme.inkFaint : BridgeTheme.inkSoft)
+                        .monospacedDigit()
+                }
             }
             Spacer(minLength: 8)
-            Image(systemName: "arrow.triangle.2.circlepath")
+            Image(systemName: row.errorMessage == nil ? "arrow.triangle.2.circlepath" : "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundStyle(BridgeTheme.inkFaint)
+                .foregroundStyle(row.errorMessage == nil ? BridgeTheme.inkFaint : BridgeTheme.bad)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(row.displayName))
-        .accessibilityValue(Text(row.lastSyncDescription))
+        .accessibilityValue(Text(row.errorMessage ?? row.lastSyncDescription))
     }
 }
 

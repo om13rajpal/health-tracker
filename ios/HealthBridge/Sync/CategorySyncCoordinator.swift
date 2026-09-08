@@ -8,6 +8,10 @@ import HealthKit
 /// underlying HKSample subtype and value shape differ. Read-only: this app
 /// has no feature that creates HKCategorySample data.
 final class CategorySyncCoordinator {
+    // See HealthObserverCoordinator's matching constant/comment — same
+    // unbounded-batch-can-outrun-the-background-window problem, same fix.
+    private static let chunkLimit = 200
+
     private let healthStore: HKHealthStore
     private let anchorStore: SyncAnchorStore
     private let uploadSession: BackgroundUploadSession
@@ -23,6 +27,7 @@ final class CategorySyncCoordinator {
         let observerCompletion: HKObserverQueryCompletionHandler
         var remainingTaskIdentifiers: Set<String>
         var allSucceeded: Bool
+        let chunkWasFull: Bool
     }
 
     private var pendingBatches: [String: PendingBatch] = [:]
@@ -111,12 +116,16 @@ final class CategorySyncCoordinator {
             return
         }
 
+        drainChunk(category: category, observerCompletion: observerCompletion)
+    }
+
+    private func drainChunk(category: HealthCategoryMetric, observerCompletion: @escaping HKObserverQueryCompletionHandler) {
         let anchor = anchorStore.anchor(forKey: category.rawValue)
         let anchoredQuery = HKAnchoredObjectQuery(
             type: category.categoryType,
             predicate: nil,
             anchor: anchor,
-            limit: HKObjectQueryNoLimit
+            limit: Self.chunkLimit
         ) { [weak self] _, samples, _, newAnchor, error in
             guard let self else {
                 observerCompletion()
@@ -151,7 +160,8 @@ final class CategorySyncCoordinator {
             newAnchor: newAnchor,
             observerCompletion: observerCompletion,
             remainingTaskIdentifiers: taskIdentifiers,
-            allSucceeded: true
+            allSucceeded: true,
+            chunkWasFull: samples.count == Self.chunkLimit
         )
         batchLock.unlock()
 
@@ -181,14 +191,22 @@ final class CategorySyncCoordinator {
 
         guard isComplete else { return }
 
-        endBatch(for: batch.category)
-
-        if batch.allSucceeded {
-            anchorStore.save(batch.newAnchor, forKey: batch.category.rawValue)
-            lastSyncStore.recordSync(forKey: batch.category.rawValue, at: Date())
-        } else {
+        guard batch.allSucceeded else {
+            endBatch(for: batch.category)
             onDeliveryError?(batch.category, "Some samples failed to upload — will retry on the next sync.")
+            batch.observerCompletion()
+            return
         }
+
+        anchorStore.save(batch.newAnchor, forKey: batch.category.rawValue)
+        lastSyncStore.recordSync(forKey: batch.category.rawValue, at: Date())
+
+        if batch.chunkWasFull {
+            drainChunk(category: batch.category, observerCompletion: batch.observerCompletion)
+            return
+        }
+
+        endBatch(for: batch.category)
         batch.observerCompletion()
     }
 }

@@ -12,6 +12,9 @@ import HealthKit
 @available(iOS 18.0, *)
 final class MoodSyncCoordinator {
     private static let anchorKey = "mood"
+    // See HealthObserverCoordinator's matching constant/comment — same
+    // unbounded-batch-can-outrun-the-background-window problem, same fix.
+    private static let chunkLimit = 200
 
     private let healthStore: HKHealthStore
     private let anchorStore: SyncAnchorStore
@@ -27,6 +30,7 @@ final class MoodSyncCoordinator {
         let observerCompletion: HKObserverQueryCompletionHandler
         var remainingTaskIdentifiers: Set<String>
         var allSucceeded: Bool
+        let chunkWasFull: Bool
     }
 
     private var pendingBatches: [String: PendingBatch] = [:]
@@ -102,12 +106,16 @@ final class MoodSyncCoordinator {
             return
         }
 
+        drainChunk(observerCompletion: observerCompletion)
+    }
+
+    private func drainChunk(observerCompletion: @escaping HKObserverQueryCompletionHandler) {
         let anchor = anchorStore.anchor(forKey: Self.anchorKey)
         let anchoredQuery = HKAnchoredObjectQuery(
             type: .stateOfMindType(),
             predicate: nil,
             anchor: anchor,
-            limit: HKObjectQueryNoLimit
+            limit: Self.chunkLimit
         ) { [weak self] _, samples, _, newAnchor, error in
             guard let self else {
                 observerCompletion()
@@ -140,7 +148,8 @@ final class MoodSyncCoordinator {
             newAnchor: newAnchor,
             observerCompletion: observerCompletion,
             remainingTaskIdentifiers: taskIdentifiers,
-            allSucceeded: true
+            allSucceeded: true,
+            chunkWasFull: moods.count == Self.chunkLimit
         )
         batchLock.unlock()
 
@@ -170,14 +179,22 @@ final class MoodSyncCoordinator {
 
         guard isComplete else { return }
 
-        endBatch()
-
-        if batch.allSucceeded {
-            anchorStore.save(batch.newAnchor, forKey: Self.anchorKey)
-            lastSyncStore.recordSync(forKey: Self.anchorKey, at: Date())
-        } else {
+        guard batch.allSucceeded else {
+            endBatch()
             onDeliveryError?("Some mood entries failed to upload — will retry on the next sync.")
+            batch.observerCompletion()
+            return
         }
+
+        anchorStore.save(batch.newAnchor, forKey: Self.anchorKey)
+        lastSyncStore.recordSync(forKey: Self.anchorKey, at: Date())
+
+        if batch.chunkWasFull {
+            drainChunk(observerCompletion: batch.observerCompletion)
+            return
+        }
+
+        endBatch()
         batch.observerCompletion()
     }
 }

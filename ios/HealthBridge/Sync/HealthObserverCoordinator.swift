@@ -35,6 +35,22 @@ final class InFlightMetricGuard {
 }
 
 final class HealthObserverCoordinator {
+    // A first-ever sync (or one re-started after a reinstall wipes the local
+    // anchor) can have tens of thousands of samples for a high-volume metric
+    // like steps. Fetching and enqueueing all of them in one
+    // HKAnchoredObjectQuery, inside a single observer-trigger callback, can
+    // outrun the execution window HealthKit background delivery actually
+    // gets — the process is suspended mid-enqueue, some upload tasks never
+    // start, their completions never fire, the batch never finishes, the
+    // anchor (only ever saved on full-batch success) never advances, and the
+    // in-flight guard blocks every future trigger for that metric until the
+    // app is killed and relaunched, which just re-fetches the same oversized
+    // backlog and wedges again. Bounding each fetch to a small chunk and
+    // saving the anchor per chunk — draining chunk after chunk while still
+    // holding the in-flight claim — means any interruption preserves the
+    // progress already made instead of losing all of it.
+    private static let chunkLimit = 200
+
     private let healthStore: HKHealthStore
     private let anchorStore: SyncAnchorStore
     private let uploadSession: BackgroundUploadSession
@@ -55,6 +71,10 @@ final class HealthObserverCoordinator {
         let observerCompletion: HKObserverQueryCompletionHandler
         var remainingTaskIdentifiers: Set<String>
         var allSucceeded: Bool
+        /// The chunk hit `chunkLimit` — more samples likely remain, so a
+        /// successful chunk should immediately drain the next one rather
+        /// than releasing the in-flight claim.
+        let chunkWasFull: Bool
     }
 
     private var pendingBatches: [String: PendingBatch] = [:]
@@ -126,12 +146,20 @@ final class HealthObserverCoordinator {
             return
         }
 
+        drainChunk(metric: metric, observerCompletion: observerCompletion)
+    }
+
+    /// Fetches and uploads one bounded chunk. Called again by `markTaskComplete`
+    /// for as long as chunks keep coming back full — still holding the
+    /// in-flight claim `handleObserverTrigger` took, so this never races a
+    /// second trigger for the same metric.
+    private func drainChunk(metric: HealthMetric, observerCompletion: @escaping HKObserverQueryCompletionHandler) {
         let anchor = anchorStore.anchor(for: metric)
         let anchoredQuery = HKAnchoredObjectQuery(
             type: metric.sampleType,
             predicate: nil,
             anchor: anchor,
-            limit: HKObjectQueryNoLimit
+            limit: Self.chunkLimit
         ) { [weak self] _, samples, _, newAnchor, error in
             guard let self else {
                 observerCompletion()
@@ -166,7 +194,8 @@ final class HealthObserverCoordinator {
             newAnchor: newAnchor,
             observerCompletion: observerCompletion,
             remainingTaskIdentifiers: taskIdentifiers,
-            allSucceeded: true
+            allSucceeded: true,
+            chunkWasFull: samples.count == Self.chunkLimit
         )
         batchLock.unlock()
 
@@ -196,18 +225,27 @@ final class HealthObserverCoordinator {
 
         guard isComplete else { return }
 
-        inFlightGuard.endBatch(for: batch.metric)
-
-        if batch.allSucceeded {
-            anchorStore.save(batch.newAnchor, for: batch.metric)
-            lastSyncStore.recordSync(for: batch.metric, at: Date())
-        } else {
+        guard batch.allSucceeded else {
+            inFlightGuard.endBatch(for: batch.metric)
             onDeliveryError?(batch.metric, "Some samples failed to upload — will retry on the next sync.")
+            // Per Apple's guidance, always call the observer's completion handler even on
+            // failure, to avoid HealthKit throttling future background deliveries. The
+            // anchor above is intentionally NOT advanced on failure, so the next delivery
+            // re-fetches and retries these same samples.
+            batch.observerCompletion()
+            return
         }
-        // Per Apple's guidance, always call the observer's completion handler even on
-        // failure, to avoid HealthKit throttling future background deliveries. The
-        // anchor above is intentionally NOT advanced on failure, so the next delivery
-        // re-fetches and retries these same samples.
+
+        anchorStore.save(batch.newAnchor, for: batch.metric)
+        lastSyncStore.recordSync(for: batch.metric, at: Date())
+
+        if batch.chunkWasFull {
+            // More likely remain — keep draining under the same in-flight claim.
+            drainChunk(metric: batch.metric, observerCompletion: batch.observerCompletion)
+            return
+        }
+
+        inFlightGuard.endBatch(for: batch.metric)
         batch.observerCompletion()
     }
 }
@@ -264,6 +302,9 @@ extension HealthObserverCoordinator: BackgroundUploadSessionDelegateHandler {
 /// workout sync is simply on whenever HealthKit authorization succeeds.
 final class WorkoutSyncCoordinator {
     private static let anchorKey = "workouts"
+    // See HealthObserverCoordinator's matching constant/comment — same
+    // unbounded-batch-can-outrun-the-background-window problem, same fix.
+    private static let chunkLimit = 200
 
     private let healthStore: HKHealthStore
     private let anchorStore: SyncAnchorStore
@@ -279,6 +320,7 @@ final class WorkoutSyncCoordinator {
         let observerCompletion: HKObserverQueryCompletionHandler
         var remainingTaskIdentifiers: Set<String>
         var allSucceeded: Bool
+        let chunkWasFull: Bool
     }
 
     private var pendingBatches: [String: PendingBatch] = [:]
@@ -354,12 +396,16 @@ final class WorkoutSyncCoordinator {
             return
         }
 
+        drainChunk(observerCompletion: observerCompletion)
+    }
+
+    private func drainChunk(observerCompletion: @escaping HKObserverQueryCompletionHandler) {
         let anchor = anchorStore.anchor(forKey: Self.anchorKey)
         let anchoredQuery = HKAnchoredObjectQuery(
             type: .workoutType(),
             predicate: nil,
             anchor: anchor,
-            limit: HKObjectQueryNoLimit
+            limit: Self.chunkLimit
         ) { [weak self] _, samples, _, newAnchor, error in
             guard let self else {
                 observerCompletion()
@@ -392,7 +438,8 @@ final class WorkoutSyncCoordinator {
             newAnchor: newAnchor,
             observerCompletion: observerCompletion,
             remainingTaskIdentifiers: taskIdentifiers,
-            allSucceeded: true
+            allSucceeded: true,
+            chunkWasFull: workouts.count == Self.chunkLimit
         )
         batchLock.unlock()
 
@@ -422,14 +469,22 @@ final class WorkoutSyncCoordinator {
 
         guard isComplete else { return }
 
-        endBatch()
-
-        if batch.allSucceeded {
-            anchorStore.save(batch.newAnchor, forKey: Self.anchorKey)
-            lastSyncStore.recordSync(forKey: Self.anchorKey, at: Date())
-        } else {
+        guard batch.allSucceeded else {
+            endBatch()
             onDeliveryError?("Some workouts failed to upload — will retry on the next sync.")
+            batch.observerCompletion()
+            return
         }
+
+        anchorStore.save(batch.newAnchor, forKey: Self.anchorKey)
+        lastSyncStore.recordSync(forKey: Self.anchorKey, at: Date())
+
+        if batch.chunkWasFull {
+            drainChunk(observerCompletion: batch.observerCompletion)
+            return
+        }
+
+        endBatch()
         batch.observerCompletion()
     }
 }

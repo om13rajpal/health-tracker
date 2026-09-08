@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 struct StatusRow: Identifiable, Equatable {
     let id: HealthMetric
@@ -37,4 +38,21 @@ struct EventSyncRow: Identifiable, Equatable {
     let displayName: String
     let lastSyncDescription: String
     let lastSync: Date?
+    let errorMessage: String?
+}
+
+/// Workouts, category samples, and mood each have their own sync
+/// coordinator with its own `onDeliveryError` callback (unlike the
+/// toggleable quantity metrics, none of them had anywhere to report an
+/// error to before this existed — an error there was silently dropped).
+/// AppDelegate wires each coordinator's callback into `record(_:for:)` once
+/// at construction; `StatusViewModel` reads `errors` back out when it
+/// builds `eventRows`.
+@Observable
+final class EventSyncErrorStore {
+    private(set) var errors: [String: String] = [:]
+
+    func record(_ message: String, for key: String) {
+        errors[key] = message
+    }
 }
