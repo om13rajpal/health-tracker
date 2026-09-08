@@ -193,7 +193,7 @@ final class CategorySyncCoordinator {
 
         guard batch.allSucceeded else {
             endBatch(for: batch.category)
-            onDeliveryError?(batch.category, "Some samples failed to upload — will retry on the next sync.")
+            onDeliveryError?(batch.category, "Some samples failed to upload. It will retry on the next sync.")
             batch.observerCompletion()
             return
         }

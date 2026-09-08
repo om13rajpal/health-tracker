@@ -83,15 +83,29 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // report an error to at all before EventSyncErrorStore existed, and
         // wiring at construction means an error is captured even if the
         // status screen is never opened.
+        //
+        // HealthKit invokes onDeliveryError from completion-handler/callback
+        // contexts with no main-thread guarantee (confirmed the hard way: an
+        // un-hopped call here crashed with a Dictionary corruption under the
+        // full test suite, where startObserving() runs for real and several
+        // coordinators' background queues raced on the same `errors` store).
+        // EventSyncErrorStore is an @Observable class StatusView reads on
+        // the main thread, so every write into it must hop there explicitly.
         workoutCoordinator.onDeliveryError = { [weak eventSyncErrors] message in
-            eventSyncErrors?.record(message, for: "workouts")
+            DispatchQueue.main.async {
+                eventSyncErrors?.record(message, for: "workouts")
+            }
         }
         categoryCoordinator.onDeliveryError = { [weak eventSyncErrors] category, message in
-            eventSyncErrors?.record(message, for: category.rawValue)
+            DispatchQueue.main.async {
+                eventSyncErrors?.record(message, for: category.rawValue)
+            }
         }
         if #available(iOS 18.0, *) {
             moodCoordinator.onDeliveryError = { [weak eventSyncErrors] message in
-                eventSyncErrors?.record(message, for: "mood")
+                DispatchQueue.main.async {
+                    eventSyncErrors?.record(message, for: "mood")
+                }
             }
         }
     }

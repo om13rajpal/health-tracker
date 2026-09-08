@@ -117,7 +117,7 @@ struct StatusView: View {
                             .foregroundStyle(BridgeTheme.ink)
                             .textCase(nil)
                     } footer: {
-                        Text("Workouts, sleep, and event data from Apple Health. There's no switch for these — HealthBridge only ever reads from Health, never writes back to it, and each syncs the moment HealthKit has something new to send.")
+                        Text("Workouts, sleep, and event data from Apple Health. There's no switch for these: HealthBridge only ever reads from Health, never writes back to it, and each syncs the moment HealthKit has something new to send.")
                             .font(.caption)
                             .foregroundStyle(BridgeTheme.inkFaint)
                     }
@@ -197,8 +197,13 @@ private struct SyncHeader: View {
         }
     }
 
+    private var progress: Double {
+        guard let summary, summary.total > 0 else { return 0 }
+        return Double(summary.enabled) / Double(summary.total)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline) {
                 HStack(spacing: 6) {
                     Circle()
@@ -220,44 +225,100 @@ private struct SyncHeader: View {
                     }
                     .font(.caption.weight(.semibold))
                     .contentTransition(.opacity)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(BridgeTheme.onBand.opacity(0.12), in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(BridgeTheme.onBand)
                 .disabled(isSyncingNow)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(summary?.enabled ?? 0)")
-                    .font(BridgeTheme.reading(44, weight: .heavy))
-                    .foregroundStyle(accent)
-                    .contentTransition(.numericText())
-                Text("of \(summary?.total ?? HealthMetric.allCases.count) metrics")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(BridgeTheme.onBandSoft)
+            HStack(alignment: .center, spacing: 16) {
+                RingGauge(progress: progress, trackColor: BridgeTheme.onBandSoft.opacity(0.22), color: accent)
+                    .frame(width: 62, height: 62)
+                    .overlay {
+                        Text("\(summary?.enabled ?? 0)")
+                            .font(BridgeTheme.reading(22, weight: .heavy))
+                            .foregroundStyle(accent)
+                            .contentTransition(.numericText())
+                    }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("of \(summary?.total ?? HealthMetric.allCases.count) metrics switched on")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(BridgeTheme.onBand)
+                    Text(summary?.detail() ?? "Reading the current state…")
+                        .font(.footnote)
+                        .foregroundStyle(BridgeTheme.onBandSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .contentTransition(.opacity)
+                }
             }
 
-            Text(summary?.detail() ?? "Reading the current state…")
-                .font(.footnote)
-                .foregroundStyle(BridgeTheme.onBand)
-                .fixedSize(horizontal: false, vertical: true)
-                .contentTransition(.opacity)
-
-            Text("iOS decides when background delivery runs on its own — tap Sync now to try immediately, which works best with the app open.")
+            Text("iOS decides when background delivery runs on its own. Tap Sync now to try immediately, which works best with the app open.")
                 .font(.caption2)
                 .foregroundStyle(BridgeTheme.onBandSoft)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(BridgeTheme.band)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(
+            LinearGradient(
+                colors: [BridgeTheme.band, BridgeTheme.bandDeep],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .padding(.vertical, 4)
         .animation(.easeInOut(duration: 0.3), value: accent)
         .animation(.easeInOut(duration: 0.3), value: isSyncingNow)
+        .animation(.easeInOut(duration: 0.6), value: progress)
+    }
+}
+
+/// A thin ring gauge, the same visual language as Apple's own Activity
+/// rings, used here for "how much of the catalogue is switched on" — a
+/// proportion reads faster as a ring than as a fraction of two numbers.
+private struct RingGauge: View {
+    let progress: Double
+    let trackColor: Color
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(trackColor, lineWidth: 6)
+            Circle()
+                .trim(from: 0, to: max(0.001, min(1, progress)))
+                .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
     }
 }
 
 // MARK: - Rows
+
+/// A small circular icon, tinted with the row's state rather than
+/// decoratively per-metric — `BridgeTheme`'s own rule is one accent for
+/// everything interactive and the status trio reserved for state, so a
+/// rainbow of per-group colors here would work against the palette this
+/// app already committed to. The icon itself still varies; the color says
+/// whether it's fine or not.
+private struct IconBadge: View {
+    let systemName: String
+    let isBad: Bool
+
+    var body: some View {
+        ZStack {
+            Circle().fill((isBad ? BridgeTheme.bad : BridgeTheme.ink).opacity(isBad ? 0.12 : 0.07))
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isBad ? BridgeTheme.bad : BridgeTheme.inkSoft)
+        }
+        .frame(width: 30, height: 30)
+    }
+}
 
 private struct MetricRow: View {
     let row: StatusRow
@@ -265,6 +326,7 @@ private struct MetricRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            IconBadge(systemName: row.id.group.icon, isBad: row.errorMessage != nil)
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.displayName)
                     .font(.body)
@@ -284,7 +346,7 @@ private struct MetricRow: View {
             Toggle("", isOn: Binding(get: { row.isEnabled }, set: onToggle))
                 .labelsHidden()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(row.displayName))
         .accessibilityValue(Text(row.errorMessage ?? row.lastSyncDescription))
@@ -298,6 +360,7 @@ private struct EventRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            IconBadge(systemName: row.icon, isBad: row.errorMessage != nil)
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.displayName)
                     .font(.body)
@@ -314,11 +377,8 @@ private struct EventRow: View {
                 }
             }
             Spacer(minLength: 8)
-            Image(systemName: row.errorMessage == nil ? "arrow.triangle.2.circlepath" : "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(row.errorMessage == nil ? BridgeTheme.inkFaint : BridgeTheme.bad)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(row.displayName))
         .accessibilityValue(Text(row.errorMessage ?? row.lastSyncDescription))
@@ -332,7 +392,10 @@ private struct SectionHeader: View {
     private var allOn: Bool { section.enabledCount == section.rows.count }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: section.group.icon)
+                .font(.caption)
+                .foregroundStyle(BridgeTheme.accent)
             Text(section.group.title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(BridgeTheme.ink)

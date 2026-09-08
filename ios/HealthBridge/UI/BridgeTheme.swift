@@ -8,6 +8,10 @@ import UIKit
 enum BridgeTheme {
     /// The dark band behind the header — the page ground on the web.
     static let band = Color(light: Color(hex: 0x15211C), dark: Color(hex: 0x080F0D))
+    /// A touch deeper than `band` — the far end of the header's gradient,
+    /// giving the one card in the app with real weight a little more depth
+    /// than a flat fill.
+    static let bandDeep = Color(light: Color(hex: 0x0E1712), dark: Color(hex: 0x050A08))
     static let onBand = Color(light: Color(hex: 0xEEF0E9), dark: Color(hex: 0xE7EAE3))
     static let onBandSoft = Color(light: Color(hex: 0x9DAAA1), dark: Color(hex: 0x93A19A))
 

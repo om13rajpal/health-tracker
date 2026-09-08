@@ -181,7 +181,7 @@ final class MoodSyncCoordinator {
 
         guard batch.allSucceeded else {
             endBatch()
-            onDeliveryError?("Some mood entries failed to upload — will retry on the next sync.")
+            onDeliveryError?("Some mood entries failed to upload. It will retry on the next sync.")
             batch.observerCompletion()
             return
         }

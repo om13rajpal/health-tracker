@@ -227,7 +227,7 @@ final class HealthObserverCoordinator {
 
         guard batch.allSucceeded else {
             inFlightGuard.endBatch(for: batch.metric)
-            onDeliveryError?(batch.metric, "Some samples failed to upload — will retry on the next sync.")
+            onDeliveryError?(batch.metric, "Some samples failed to upload. It will retry on the next sync.")
             // Per Apple's guidance, always call the observer's completion handler even on
             // failure, to avoid HealthKit throttling future background deliveries. The
             // anchor above is intentionally NOT advanced on failure, so the next delivery
@@ -471,7 +471,7 @@ final class WorkoutSyncCoordinator {
 
         guard batch.allSucceeded else {
             endBatch()
-            onDeliveryError?("Some workouts failed to upload — will retry on the next sync.")
+            onDeliveryError?("Some workouts failed to upload. It will retry on the next sync.")
             batch.observerCompletion()
             return
         }

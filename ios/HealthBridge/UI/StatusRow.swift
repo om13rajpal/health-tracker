@@ -36,6 +36,7 @@ struct StatusRow: Identifiable, Equatable {
 struct EventSyncRow: Identifiable, Equatable {
     let id: String
     let displayName: String
+    let icon: String
     let lastSyncDescription: String
     let lastSync: Date?
     let errorMessage: String?

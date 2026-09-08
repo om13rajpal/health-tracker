@@ -266,6 +266,21 @@ enum HealthCategoryMetric: String, CaseIterable, Codable {
         }
     }
 
+    var icon: String {
+        switch self {
+        case .sleepAnalysis: return "moon.zzz.fill"
+        case .standHour: return "figure.stand"
+        case .mindfulSession: return "leaf.fill"
+        case .highHeartRateEvent: return "arrow.up.heart.fill"
+        case .lowHeartRateEvent: return "arrow.down.heart.fill"
+        case .irregularHeartRhythmEvent: return "waveform.path.ecg"
+        case .handwashingEvent: return "hands.sparkles.fill"
+        case .toothbrushingEvent: return "timer"
+        case .walkingSteadinessEvent: return "figure.walk.motion"
+        case .lowCardioFitnessEvent: return "bolt.heart.fill"
+        }
+    }
+
     // Only sleepAnalysis and standHour have a well-documented, stable public
     // value enum worth translating to a friendly string. Every event type's
     // raw `value` is reported as-is (still fully captured, just not

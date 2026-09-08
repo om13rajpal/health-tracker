@@ -44,6 +44,21 @@ enum HealthMetricGroup: String, CaseIterable, Identifiable {
         case .other: return "Rarely recorded, kept for completeness."
         }
     }
+
+    /// One SF Symbol per group, shown next to its section heading.
+    var icon: String {
+        switch self {
+        case .activity: return "flame.fill"
+        case .heart: return "heart.fill"
+        case .body: return "figure.arms.open"
+        case .mobility: return "figure.walk"
+        case .running: return "figure.run"
+        case .cycling: return "bicycle"
+        case .water: return "drop.fill"
+        case .environment: return "sun.max.fill"
+        case .other: return "ellipsis.circle.fill"
+        }
+    }
 }
 
 extension HealthMetric {

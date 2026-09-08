@@ -51,16 +51,17 @@ final class StatusViewModel {
     /// record against. Mood only exists from iOS 18 on — see
     /// `MoodSyncCoordinator`'s own doc comment for why.
     private static func buildEventRows(lastSyncStore: LastSyncStore, eventSyncErrors: EventSyncErrorStore?, now: Date) -> [EventSyncRow] {
-        var items: [(key: String, name: String)] = [("workouts", "Workouts")]
-        items += HealthCategoryMetric.allCases.map { ($0.rawValue, $0.displayName) }
+        var items: [(key: String, name: String, icon: String)] = [("workouts", "Workouts", "figure.run")]
+        items += HealthCategoryMetric.allCases.map { ($0.rawValue, $0.displayName, $0.icon) }
         if #available(iOS 18.0, *) {
-            items.append(("mood", "Mood"))
+            items.append(("mood", "Mood", "face.smiling.fill"))
         }
         return items.map { item in
             let lastSync = lastSyncStore.lastSync(forKey: item.key)
             return EventSyncRow(
                 id: item.key,
                 displayName: item.name,
+                icon: item.icon,
                 lastSyncDescription: relativeDescription(for: lastSync, now: now),
                 lastSync: lastSync,
                 errorMessage: eventSyncErrors?.errors[item.key]
