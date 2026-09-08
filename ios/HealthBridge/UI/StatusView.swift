@@ -9,13 +9,13 @@ struct StatusView: View {
     @State private var viewModel: StatusViewModel?
     @State private var filter: MetricFilter = .on
     @State private var searchText = ""
-    @State private var isSyncingNow = false
+    @State private var syncPhase: SyncPhase = .idle
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    SyncHeader(summary: viewModel?.summary, isSyncingNow: isSyncingNow, onSyncNow: syncNow)
+                    SyncHeader(summary: viewModel?.summary, syncPhase: syncPhase, onSyncNow: syncNow)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -112,12 +112,12 @@ struct StatusView: View {
                             EventRow(row: row)
                         }
                     } header: {
-                        Text("Recorded automatically")
+                        Text("Workouts, sleep & mood")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(BridgeTheme.ink)
                             .textCase(nil)
                     } footer: {
-                        Text("Workouts, sleep, and event data from Apple Health. There's no switch for these: HealthBridge only ever reads from Health, never writes back to it, and each syncs the moment HealthKit has something new to send.")
+                        Text("These sync automatically, so there's no switch to turn them off. Each one updates the moment Health has something new.")
                             .font(.caption)
                             .foregroundStyle(BridgeTheme.inkFaint)
                     }
@@ -162,21 +162,35 @@ struct StatusView: View {
     }
 
     /// A visible, tappable counterpart to the passive background-delivery
-    /// sync — see `AppDelegate.syncAllNow()`. `isSyncingNow` is an honest
-    /// "a sync attempt is running" indicator, not a progress bar: there's no
-    /// way to know from here how much a coordinator still has left to drain,
-    /// so it just holds "Syncing…" for a few seconds and then refreshes the
-    /// rows, which is enough time for a small delta (the common case) to
-    /// land and show an updated "Last synced" time.
+    /// sync — see `AppDelegate.syncAllNow()`. There's no way to know from
+    /// here how much a coordinator still has left to drain, so this doesn't
+    /// pretend to track real progress — it holds `.syncing` for a few
+    /// seconds (enough for a small delta, the common case, to land and show
+    /// an updated "Last synced" time), then confirms with `.justSynced`
+    /// before settling back to idle. The confirmation is the one
+    /// deliberately animated moment in this screen: it answers the tap.
     private func syncNow() {
+        guard syncPhase == .idle else { return }
         syncAllNow?()
-        isSyncingNow = true
+        syncPhase = .syncing
         Task {
             try? await Task.sleep(for: .seconds(4))
             viewModel?.refresh()
-            isSyncingNow = false
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.65)) {
+                syncPhase = .justSynced
+            }
+            try? await Task.sleep(for: .seconds(1.3))
+            withAnimation(.easeInOut(duration: 0.3)) {
+                syncPhase = .idle
+            }
         }
     }
+}
+
+private enum SyncPhase: Equatable {
+    case idle
+    case syncing
+    case justSynced
 }
 
 // MARK: - Header
@@ -185,7 +199,7 @@ struct StatusView: View {
 /// actually reaching the server?" before any toggle is visible.
 private struct SyncHeader: View {
     let summary: StatusSummary?
-    let isSyncingNow: Bool
+    let syncPhase: SyncPhase
     let onSyncNow: () -> Void
 
     private var accent: Color {
@@ -214,35 +228,18 @@ private struct SyncHeader: View {
                         .foregroundStyle(BridgeTheme.onBandSoft)
                 }
                 Spacer()
-                Button(action: onSyncNow) {
-                    HStack(spacing: 5) {
-                        if isSyncingNow {
-                            ProgressView().tint(BridgeTheme.onBand).scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                        Text(isSyncingNow ? "Syncing…" : "Sync now")
-                    }
-                    .font(.caption.weight(.semibold))
-                    .contentTransition(.opacity)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(BridgeTheme.onBand.opacity(0.12), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(BridgeTheme.onBand)
-                .disabled(isSyncingNow)
+                SyncButton(phase: syncPhase, action: onSyncNow)
             }
 
             HStack(alignment: .center, spacing: 16) {
-                RingGauge(progress: progress, trackColor: BridgeTheme.onBandSoft.opacity(0.22), color: accent)
-                    .frame(width: 62, height: 62)
-                    .overlay {
-                        Text("\(summary?.enabled ?? 0)")
-                            .font(BridgeTheme.reading(22, weight: .heavy))
-                            .foregroundStyle(accent)
-                            .contentTransition(.numericText())
-                    }
+                RingGauge(
+                    progress: progress,
+                    trackColor: BridgeTheme.onBandSoft.opacity(0.22),
+                    color: accent,
+                    enabledCount: summary?.enabled ?? 0,
+                    justSynced: syncPhase == .justSynced
+                )
+                .frame(width: 62, height: 62)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("of \(summary?.total ?? HealthMetric.allCases.count) metrics switched on")
@@ -273,18 +270,60 @@ private struct SyncHeader: View {
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .padding(.vertical, 4)
         .animation(.easeInOut(duration: 0.3), value: accent)
-        .animation(.easeInOut(duration: 0.3), value: isSyncingNow)
         .animation(.easeInOut(duration: 0.6), value: progress)
+    }
+}
+
+private struct SyncButton: View {
+    let phase: SyncPhase
+    let action: () -> Void
+
+    private var label: String {
+        switch phase {
+        case .idle: return "Sync now"
+        case .syncing: return "Syncing…"
+        case .justSynced: return "Synced"
+        }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                switch phase {
+                case .idle:
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                case .syncing:
+                    ProgressView().tint(BridgeTheme.onBand).scaleEffect(0.7)
+                case .justSynced:
+                    Image(systemName: "checkmark")
+                }
+                Text(label)
+            }
+            .font(.caption.weight(.semibold))
+            .contentTransition(.opacity)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(BridgeTheme.onBand.opacity(phase == .justSynced ? 0.2 : 0.12), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(BridgeTheme.onBand)
+        .disabled(phase != .idle)
+        .animation(.easeInOut(duration: 0.25), value: phase)
     }
 }
 
 /// A thin ring gauge, the same visual language as Apple's own Activity
 /// rings, used here for "how much of the catalogue is switched on" — a
 /// proportion reads faster as a ring than as a fraction of two numbers.
+/// The one deliberately animated moment in the screen lives here too: a
+/// ripple that answers a completed "Sync now" tap, rather than motion
+/// scattered across every row.
 private struct RingGauge: View {
     let progress: Double
     let trackColor: Color
     let color: Color
+    let enabledCount: Int
+    let justSynced: Bool
 
     var body: some View {
         ZStack {
@@ -293,7 +332,30 @@ private struct RingGauge: View {
                 .trim(from: 0, to: max(0.001, min(1, progress)))
                 .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+
+            // The ripple: a ring that expands outward and fades, answering a
+            // completed "Sync now" tap. Reserved for that one moment rather
+            // than looping or repeating on its own.
+            Circle()
+                .stroke(color, lineWidth: 2)
+                .scaleEffect(justSynced ? 1.5 : 1)
+                .opacity(justSynced ? 0 : 0.7)
+                .animation(.easeOut(duration: 0.9), value: justSynced)
+
+            if justSynced {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(color)
+                    .transition(.scale.combined(with: .opacity))
+            } else {
+                Text("\(enabledCount)")
+                    .font(BridgeTheme.reading(22, weight: .heavy))
+                    .foregroundStyle(color)
+                    .contentTransition(.numericText())
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
+        .animation(.spring(response: 0.45, dampingFraction: 0.65), value: justSynced)
     }
 }
 
